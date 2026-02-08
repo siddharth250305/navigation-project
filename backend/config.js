@@ -17,13 +17,6 @@ class Config {
     // Load equipment configuration
     const configPath = process.env.EQUIPMENT_CONFIG_PATH || './config/equipment.json';
     this.equipment = this.loadEquipmentConfig(configPath);
-    
-    // Server configuration
-    this.server = {
-      udpPort: this.udpPort,
-      webPort: this.webPort,
-      host: this.host
-    };
   }
 
   loadEquipmentConfig(configPath) {
@@ -32,14 +25,17 @@ class Config {
       const data = fs.readFileSync(fullPath, 'utf8');
       const config = JSON.parse(data);
       
-      // Override with config file server settings if present
-      if (config.server) {
-        this.server = {
-          udpPort: config.server.udpPort || this.udpPort,
-          webPort: config.server.webPort || this.webPort,
-          host: config.server.host || this.host
-        };
-      }
+      // Priority: Environment variables > Config file > Defaults
+      // Use env vars if present, otherwise use config file, otherwise use defaults
+      const configUdpPort = config.server?.udpPort;
+      const configWebPort = config.server?.webPort;
+      const configHost = config.server?.host;
+      
+      this.server = {
+        udpPort: process.env.UDP_PORT ? parseInt(process.env.UDP_PORT) : (configUdpPort || this.udpPort),
+        webPort: process.env.WEB_PORT ? parseInt(process.env.WEB_PORT) : (configWebPort || this.webPort),
+        host: process.env.HOST || configHost || this.host
+      };
       
       return config.equipment || [];
     } catch (error) {
