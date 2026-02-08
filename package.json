@@ -7,7 +7,7 @@
     "start": "node backend/server.js",
     "dev": "node backend/server.js",
     "simulator": "node simulator/udpSimulator.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Note: Automated tests not yet implemented. Use 'npm run simulator' to test the system manually.\" && exit 0"
   },
   "keywords": [
     "udp",

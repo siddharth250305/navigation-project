@@ -214,7 +214,7 @@ function shutdown() {
   
   // Force exit after 10 seconds
   setTimeout(() => {
-    console.error('Forced shutdown');
+    console.error('Forced shutdown after 10 seconds - graceful shutdown timeout exceeded');
     process.exit(1);
   }, 10000);
 }

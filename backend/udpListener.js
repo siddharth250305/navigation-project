@@ -55,22 +55,28 @@ class UDPListener {
       // Identify equipment by source IP
       let equipment = config.getEquipmentByIp(sourceIp);
       
-      // For localhost testing (simulator), identify by packet sequence
-      // Since we can't set source IP in simulator, we'll decode all localhost packets
+      // For localhost testing (simulator), use a mapping table to maintain consistency
       if (!equipment && (sourceIp === '127.0.0.1' || sourceIp === '::1' || sourceIp === '::ffff:127.0.0.1')) {
-        // Try to identify equipment from packet content or use round-robin
-        // For now, we'll need to identify equipment differently for localhost
-        // Let's check if we have received data from this source port before
-        console.log(`Localhost packet from port ${sourcePort}, attempting to decode...`);
+        console.log(`Localhost packet from port ${sourcePort}, attempting to identify equipment...`);
         
-        // For simulator, we'll assign equipment based on the order they send
-        // This is a simplified approach for testing
-        const allEquipment = config.getAllEquipment();
-        if (allEquipment.length > 0) {
-          // Use source port to map to equipment (simple hashing)
-          const index = Math.abs(sourcePort) % allEquipment.length;
-          equipment = allEquipment[index];
-          console.log(`Mapped to ${equipment.name} for testing purposes`);
+        // Initialize port mapping if not exists
+        if (!this.localhostPortMap) {
+          this.localhostPortMap = new Map();
+          this.nextEquipmentIndex = 0;
+        }
+        
+        // Check if we've seen this source port before
+        if (this.localhostPortMap.has(sourcePort)) {
+          equipment = this.localhostPortMap.get(sourcePort);
+        } else {
+          // Assign next equipment to this source port
+          const allEquipment = config.getAllEquipment();
+          if (allEquipment.length > 0 && this.nextEquipmentIndex < allEquipment.length) {
+            equipment = allEquipment[this.nextEquipmentIndex];
+            this.localhostPortMap.set(sourcePort, equipment);
+            this.nextEquipmentIndex++;
+            console.log(`Assigned ${equipment.name} to source port ${sourcePort}`);
+          }
         }
       }
       
