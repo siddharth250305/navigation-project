@@ -1,0 +1,297 @@
+================================================================================
+                   HOW TO RUN THE NAVIGATION MONITORING SYSTEM
+================================================================================
+
+QUICK START (3 STEPS)
+---------------------
+
+1. INSTALL DEPENDENCIES
+   Open terminal/command prompt in the project folder and run:
+   
+   npm install
+
+2. START THE SERVER
+   In the same terminal, run:
+   
+   npm start
+   
+   You should see:
+   "Navigation Aid Monitoring System - Server Started"
+   "Web Dashboard: http://localhost:3000"
+
+3. OPEN THE DASHBOARD
+   Open your web browser and go to:
+   
+   http://localhost:3000
+
+4. (OPTIONAL) RUN THE SIMULATOR FOR TESTING
+   Open a NEW terminal window and run:
+   
+   npm run simulator
+   
+   Now the dashboard will show real-time equipment status!
+
+================================================================================
+
+WHAT YOU NEED BEFORE RUNNING
+-----------------------------
+
+- Node.js version 14 or higher
+  (Check with: node --version)
+  
+- npm version 6 or higher
+  (Check with: npm --version)
+
+Download Node.js from: https://nodejs.org/
+
+================================================================================
+
+DETAILED INSTRUCTIONS
+---------------------
+
+STEP 1: Install Dependencies
+-----------------------------
+Open terminal/command prompt in the project root folder.
+Run: npm install
+Wait for all packages to download and install.
+
+STEP 2: Start the Monitoring Server
+------------------------------------
+In the same terminal, run: npm start
+The server will start and display:
+- Web Dashboard URL: http://localhost:3000
+- UDP Listener Port: 4000
+- Configured Equipment list
+
+DO NOT close this terminal - keep it running!
+
+STEP 3: Open the Dashboard in Browser
+--------------------------------------
+Open any web browser (Chrome, Firefox, Edge, Safari)
+Navigate to: http://localhost:3000
+
+You should see:
+- Navigation Aid Monitoring System header
+- "Connected" status (green indicator)
+- Equipment cards (may show "No Data Available" initially)
+
+STEP 4: Run the Simulator (For Testing)
+----------------------------------------
+Open a SECOND terminal window (keep the first one running!)
+Navigate to the same project folder
+Run: npm run simulator
+
+The simulator will:
+- Send UDP packets to localhost:4000
+- Cycle through different equipment states
+- Packets sent every 5 seconds
+
+Within 5-10 seconds, the dashboard will show:
+- DME equipment card with status
+- DVOR equipment card with status
+- Localizer equipment card with status
+- Glide Path equipment card with status
+
+Each card shows:
+- Equipment name
+- ACTIVE or STANDBY state
+- NORMAL, WARNING, or ALARM status (color-coded)
+- Last update timestamp
+- Connection status (Online/Offline)
+
+================================================================================
+
+STOPPING THE SYSTEM
+-------------------
+
+To stop the server:
+- Go to the terminal running "npm start"
+- Press: Ctrl + C (Windows/Linux) or Cmd + C (Mac)
+
+To stop the simulator:
+- Go to the terminal running "npm run simulator"
+- Press: Ctrl + C (Windows/Linux) or Cmd + C (Mac)
+
+================================================================================
+
+USING DOCKER (ALTERNATIVE METHOD)
+----------------------------------
+
+If you have Docker installed, you can run:
+
+docker-compose up
+
+This will start both the server and simulator automatically.
+Access dashboard at: http://localhost:3000
+
+To stop: docker-compose down
+
+================================================================================
+
+TROUBLESHOOTING
+---------------
+
+Problem: "Port 3000 is already in use"
+Solution: Another application is using port 3000
+         Close that application or change the port in .env file
+         Set WEB_PORT=3001 in .env
+
+Problem: "Cannot find module 'express'"
+Solution: Dependencies not installed correctly
+         Run: npm install
+         Then try: npm start again
+
+Problem: Dashboard shows "No Data Available"
+Solution: Either no UDP packets are being received, or simulator is not running
+         Start the simulator: npm run simulator
+         Wait 5-10 seconds for data to appear
+
+Problem: WebSocket shows "Disconnected" (red)
+Solution: Server may not be running
+         Check if "npm start" terminal is still running
+         Refresh the browser page
+
+Problem: "node: command not found"
+Solution: Node.js is not installed
+         Download and install from https://nodejs.org/
+         Restart terminal after installation
+
+================================================================================
+
+ACCESSING FROM ANOTHER COMPUTER
+--------------------------------
+
+The dashboard is accessible from other computers on the same network.
+
+1. Find your computer's IP address
+   Windows: ipconfig
+   Mac/Linux: ifconfig or ip addr
+
+2. On another computer, open browser and navigate to:
+   http://YOUR_IP_ADDRESS:3000
+   
+   Example: http://192.168.1.100:3000
+
+Note: Firewall must allow connections on port 3000 and 4000 (UDP)
+
+================================================================================
+
+AVAILABLE COMMANDS
+------------------
+
+npm start          - Start the monitoring server
+npm run dev        - Start server (same as npm start)
+npm run simulator  - Run UDP packet simulator for testing
+npm test           - Show testing information
+
+================================================================================
+
+WHAT TO EXPECT
+--------------
+
+Terminal 1 (Server):
+--------------------
+Navigation Aid Monitoring System - Server Started
+Web Dashboard: http://localhost:3000
+UDP Listener: Port 4000
+UDP Packet Received
+Status Update - DME: ACTIVE | NORMAL
+Status Update - DVOR: ACTIVE | WARNING
+
+Terminal 2 (Simulator):
+-----------------------
+UDP Packet Simulator Started
+[timestamp] DME          → ACTIVE   | NORMAL   | Byte: 0xa0
+[timestamp] DVOR         → ACTIVE   | WARNING  | Byte: 0xa8
+[timestamp] Localizer    → ACTIVE   | ALARM    | Byte: 0xb0
+
+Dashboard (Browser):
+--------------------
+- Header: Navigation Aid Monitoring System
+- Status: Connected (green indicator)
+- Equipment Cards showing real-time status:
+  * DME: ACTIVE | NORMAL (green)
+  * DVOR: ACTIVE | WARNING (yellow)
+  * Localizer: ACTIVE | ALARM (red)
+  * Glide Path: STANDBY | NORMAL (green)
+
+Status colors:
+- Green: NORMAL
+- Yellow: WARNING
+- Red: ALARM
+- Purple: FAULT
+
+================================================================================
+
+API ENDPOINTS (For Advanced Users)
+-----------------------------------
+
+Once the server is running, these API endpoints are available:
+
+GET http://localhost:3000/api/status
+    Returns current status of all equipment
+
+GET http://localhost:3000/api/status/:equipmentId
+    Returns status of specific equipment (dme, dvor, localizer, glidepath)
+
+GET http://localhost:3000/api/history/:equipmentId
+    Returns historical data for equipment
+
+GET http://localhost:3000/api/equipment
+    Returns list of configured equipment
+
+GET http://localhost:3000/api/health
+    Returns server health status
+
+Example:
+curl http://localhost:3000/api/health
+
+================================================================================
+
+CONFIGURATION
+-------------
+
+Equipment Configuration: config/equipment.json
+- Change equipment IP addresses
+- Change UDP ports
+- Add or remove equipment
+
+Environment Variables: .env
+- UDP_PORT: UDP listening port (default: 4000)
+- WEB_PORT: Web server port (default: 3000)
+- HOST: Server host (default: 0.0.0.0)
+
+Copy .env.example to .env to customize settings.
+
+================================================================================
+
+FOR MORE INFORMATION
+--------------------
+
+- Quick Start Guide: QUICKSTART.md
+- Full Documentation: README.md
+- Security Information: SECURITY_SUMMARY.md
+
+================================================================================
+
+SUCCESS INDICATORS
+------------------
+
+You know the system is working correctly when:
+
+✓ Server starts without errors
+✓ Dashboard loads at http://localhost:3000
+✓ WebSocket shows "Connected" status
+✓ Equipment cards appear on dashboard
+✓ Status updates in real-time (timestamps change)
+✓ Terminal shows "Status Update" messages
+✓ Equipment cards show colored status badges
+
+================================================================================
+
+That's it! The system should now be running successfully.
+
+For detailed documentation, troubleshooting, and advanced features,
+see QUICKSTART.md and README.md
+
+================================================================================
