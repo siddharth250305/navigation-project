@@ -350,6 +350,155 @@ Each equipment card shows:
 - **Status**: NORMAL, WARNING, ALARM, or FAULT
 - **Last Update**: When the last packet was received
 
+### Equipment Management
+
+The system includes a complete equipment management interface that allows you to add, edit, and delete equipment through the dashboard without manually editing configuration files or restarting the server.
+
+#### Adding New Equipment
+
+1. Click the **"➕ Add Equipment"** button in the dashboard header
+2. Fill in the equipment details:
+   - **Equipment Name**: Select from presets (DME, DVOR, VOR, ILS, etc.) or enter a custom name
+   - **IP Address**: Choose "Auto-detect" (recommended) or enter a manual IP address
+   - **UDP Port**: Enter a port number (1024-65535) - the system will suggest the next available port
+   - **Equipment ID**: Auto-generated from the name (can be edited)
+   - **Enable Monitoring**: Check to start monitoring immediately
+3. Click **"Add Equipment"** - the equipment starts monitoring without a server restart
+
+**Screenshot:** Add Equipment Modal  
+![Add Equipment](https://github.com/user-attachments/assets/2b975bf2-b98f-4f80-9764-ca0f142db1f4)
+
+**Features:**
+- Real-time validation for IP addresses, port numbers, and names
+- Port availability checking (warns if port is in use)
+- Equipment presets with recommended default ports
+- Smart ID generation from equipment names
+
+#### Editing Equipment
+
+To edit existing equipment:
+
+1. Click the **menu icon (⋮)** on any equipment card
+2. Select **"✏️ Edit Equipment"**
+3. Modify any field (name, IP address, port, monitoring status)
+4. Click **"Save Changes"**
+
+**Quick Edit (Inline):**
+- Click the **edit icon (✏️)** next to IP or Port fields
+- Enter the new value
+- Changes apply immediately
+
+**What happens when you edit:**
+- **Changing Port**: UDP socket is automatically restarted on the new port
+- **Changing IP**: Configuration is updated immediately
+- **Disabling Monitoring**: Stops the UDP listener without removing the equipment
+- All changes are saved to `config/equipment.json`
+- All connected dashboard clients receive real-time updates via WebSocket
+
+#### Deleting Equipment
+
+1. Click the **menu icon (⋮)** on the equipment card
+2. Select **"🗑️ Delete Equipment"**
+3. Review the confirmation dialog showing equipment details
+4. Click **"Delete"** to confirm
+
+**What happens when you delete:**
+- UDP monitoring stops immediately for that port
+- Equipment is removed from the configuration
+- All historical data is cleared
+- The equipment card disappears from all connected dashboards
+- **This action cannot be undone**
+
+#### Validation and Error Handling
+
+The system provides real-time validation:
+
+**IP Address Validation:**
+```
+✅ Valid: 192.168.1.100
+✅ Valid: auto (for auto-detect mode)
+❌ Invalid: 192.168.1.999 (octet must be 0-255)
+❌ Invalid: 192.168.1 (incomplete address)
+```
+
+**Port Number Validation:**
+```
+✅ Port 4005 is available
+❌ Port 4000 is used by DME
+💡 Suggested: Try port 4006 (next available)
+❌ Port must be >= 1024 (non-privileged)
+❌ Port must be <= 65535
+```
+
+**Equipment Name Validation:**
+```
+✅ Valid: "DME" or "VOR Main"
+❌ Name must be at least 3 characters
+❌ Name must be less than 50 characters
+```
+
+#### Equipment Presets
+
+The system includes presets for common aviation navigation equipment:
+
+| Equipment | Default Port | Full Name |
+|-----------|--------------|-----------|
+| DME | 4000 | Distance Measuring Equipment |
+| DVOR | 4001 | Doppler VHF Omnidirectional Range |
+| Localizer | 4002 | ILS Localizer |
+| Glide Path | 4003 | ILS Glide Path |
+| VOR | 4004 | VHF Omnidirectional Range |
+| ILS | 4005 | Instrument Landing System |
+
+You can also create custom equipment types with any name.
+
+#### Configuration Persistence
+
+All equipment changes are automatically saved to `config/equipment.json`:
+
+```json
+{
+  "equipment": [
+    {
+      "id": "dme",
+      "name": "DME",
+      "ip": "192.168.1.100",
+      "port": 4000,
+      "enabled": true
+    },
+    {
+      "id": "vor-main",
+      "name": "VOR Main",
+      "ip": "auto",
+      "port": 4004,
+      "enabled": true
+    }
+  ]
+}
+```
+
+**Auto-detect Mode**: When `"ip": "auto"` is set, the system will accept packets from any IP address on that port and automatically record the source IP.
+
+#### Troubleshooting Equipment Management
+
+**Port Already in Use:**
+- The system will show which equipment is using the port
+- Select a different port from the suggestions
+- Or use the inline edit to change the existing equipment's port first
+
+**Equipment Not Receiving Data:**
+1. Verify the equipment is configured to send to the correct IP and port
+2. Check firewall rules allow UDP traffic on that port
+3. Use "Auto-detect" IP mode if you're unsure of the source IP
+4. Run the simulator to test: `npm run simulator`
+5. Use Wireshark to verify packets are arriving at the port
+
+**Changes Not Applying:**
+- All changes should apply immediately without restart
+- Check browser console for errors
+- Verify WebSocket connection is active (check header status)
+- Reload the page to see the current configuration
+
 ### Color Coding
 
 🟢 **Green (NORMAL)** - Equipment operating normally  

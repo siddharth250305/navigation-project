@@ -11,6 +11,9 @@
         <header>
             <h1>🛫 Navigation Aid Monitoring System</h1>
             <div class="header-info">
+                <button id="add-equipment-btn" class="btn-primary" title="Add New Equipment">
+                    ➕ Add Equipment
+                </button>
                 <span id="connection-status" class="status-badge disconnected">
                     <span class="status-dot"></span>
                     Disconnected
@@ -48,12 +51,21 @@
         <div class="equipment-card" data-equipment-id="">
             <div class="card-header">
                 <h2 class="equipment-name"></h2>
-                <span class="connection-indicator"></span>
+                <div class="card-actions">
+                    <span class="connection-indicator"></span>
+                    <button class="btn-icon card-menu-btn" title="Menu">⋮</button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="status-row">
+                    <span class="label">IP:</span>
+                    <span class="ip-value"></span>
+                    <button class="btn-icon edit-ip-btn" title="Edit IP">✏️</button>
+                </div>
+                <div class="status-row">
                     <span class="label">Port:</span>
                     <span class="port-value"></span>
+                    <button class="btn-icon edit-port-btn" title="Edit Port">✏️</button>
                 </div>
                 <div class="status-row">
                     <span class="label">Source IP:</span>
@@ -75,6 +87,177 @@
         </div>
     </template>
 
+    <!-- Add Equipment Modal -->
+    <div id="add-equipment-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>➕ Add New Equipment</h2>
+                <button class="modal-close" onclick="closeAddEquipmentModal()">&times;</button>
+            </div>
+            <form id="add-equipment-form">
+                <div class="form-group">
+                    <label for="equipment-name">Equipment Name *</label>
+                    <select id="equipment-type-select" class="form-control">
+                        <option value="">Select Type</option>
+                        <option value="dme">DME - Distance Measuring Equipment</option>
+                        <option value="dvor">DVOR - Doppler VHF Omnidirectional Range</option>
+                        <option value="localizer">Localizer - ILS Localizer</option>
+                        <option value="glidepath">Glide Path - ILS Glide Path</option>
+                        <option value="vor">VOR - VHF Omnidirectional Range</option>
+                        <option value="ils">ILS - Instrument Landing System</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                    <input type="text" id="equipment-name" class="form-control" style="display: none;" 
+                           placeholder="Enter equipment name" minlength="3" maxlength="50">
+                    <div class="form-feedback" id="name-feedback"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>IP Address Configuration *</label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="ip-mode" value="auto" checked>
+                            Auto-detect on first packet
+                        </label>
+                        <label>
+                            <input type="radio" name="ip-mode" value="manual">
+                            Manual Configuration
+                        </label>
+                    </div>
+                    <input type="text" id="equipment-ip" class="form-control" 
+                           placeholder="192.168.1.100" style="display: none;">
+                    <div class="form-feedback" id="ip-feedback"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="equipment-port">UDP Port Number *</label>
+                    <input type="number" id="equipment-port" class="form-control" 
+                           placeholder="4000" min="1024" max="65535" required>
+                    <small>Valid range: 1024-65535</small>
+                    <div class="form-feedback" id="port-feedback"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="equipment-id">Equipment ID (auto-generated)</label>
+                    <input type="text" id="equipment-id" class="form-control" 
+                           placeholder="dme" readonly>
+                    <small>Generated from equipment name</small>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="equipment-enabled" checked>
+                        Enable monitoring immediately
+                    </label>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeAddEquipmentModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Equipment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Equipment Modal -->
+    <div id="edit-equipment-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ Edit Equipment</h2>
+                <button class="modal-close" onclick="closeEditEquipmentModal()">&times;</button>
+            </div>
+            <form id="edit-equipment-form">
+                <input type="hidden" id="edit-equipment-id">
+                
+                <div class="form-group">
+                    <label for="edit-equipment-name">Equipment Name *</label>
+                    <input type="text" id="edit-equipment-name" class="form-control" 
+                           minlength="3" maxlength="50" required>
+                    <div class="form-feedback" id="edit-name-feedback"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>IP Address Configuration *</label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="edit-ip-mode" value="auto">
+                            Auto-detect
+                        </label>
+                        <label>
+                            <input type="radio" name="edit-ip-mode" value="manual">
+                            Manual
+                        </label>
+                    </div>
+                    <input type="text" id="edit-equipment-ip" class="form-control" 
+                           placeholder="192.168.1.100">
+                    <div class="form-feedback" id="edit-ip-feedback"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-equipment-port">UDP Port Number *</label>
+                    <input type="number" id="edit-equipment-port" class="form-control" 
+                           min="1024" max="65535" required>
+                    <div class="form-warning">⚠️ Changing port will restart monitoring</div>
+                    <div class="form-feedback" id="edit-port-feedback"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="edit-equipment-enabled">
+                        Enable monitoring
+                    </label>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeEditEquipmentModal()">Cancel</button>
+                    <button type="button" class="btn-danger" onclick="deleteEquipment()">Delete Equipment</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-confirm-modal" class="modal" style="display: none;">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>⚠️ Confirm Deletion</h2>
+                <button class="modal-close" onclick="closeDeleteConfirmModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete?</p>
+                <div class="delete-info">
+                    <p><strong>Equipment:</strong> <span id="delete-equipment-name"></span></p>
+                    <p><strong>IP:</strong> <span id="delete-equipment-ip"></span></p>
+                    <p><strong>Port:</strong> <span id="delete-equipment-port"></span></p>
+                </div>
+                <p class="delete-warning">This will:</p>
+                <ul class="delete-warning-list">
+                    <li>Stop UDP monitoring</li>
+                    <li>Remove from configuration</li>
+                    <li>Delete all history</li>
+                </ul>
+                <p class="delete-warning"><strong>This action cannot be undone.</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeDeleteConfirmModal()">Cancel</button>
+                <button type="button" class="btn-danger" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Menu Popup -->
+    <div id="card-menu-popup" class="popup-menu" style="display: none;">
+        <button class="menu-item" onclick="editEquipmentFromMenu()">✏️ Edit Equipment</button>
+        <button class="menu-item" onclick="deleteEquipmentFromMenu()">🗑️ Delete Equipment</button>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification-toast" class="toast" style="display: none;">
+        <span id="notification-message"></span>
+    </div>
+
+    <script src="data/equipmentPresets.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

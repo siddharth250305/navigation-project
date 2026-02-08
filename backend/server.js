@@ -9,6 +9,7 @@ const config = require('./config');
 const equipmentManager = require('./equipmentManager');
 const udpListener = require('./udpListener');
 const websocketServer = require('./websocketServer');
+const equipmentRoutes = require('./routes/equipmentRoutes');
 
 const app = express();
 
@@ -20,10 +21,14 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   next();
 });
 
 // ==================== REST API Routes ====================
+
+// Equipment management routes
+app.use('/api/equipment', equipmentRoutes);
 
 /**
  * GET /api/status

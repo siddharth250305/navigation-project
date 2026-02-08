@@ -91,11 +91,18 @@ class WebSocketServer {
    * Broadcasts status update to all connected clients
    */
   broadcast(data) {
-    const message = JSON.stringify({
-      type: 'statusUpdate',
-      data,
-      timestamp: new Date().toISOString()
-    });
+    // If data already has a type, send it as-is (wrapped in timestamp)
+    // Otherwise, wrap it in statusUpdate for backward compatibility
+    const message = data.type 
+      ? JSON.stringify({
+          ...data,
+          timestamp: data.timestamp || new Date().toISOString()
+        })
+      : JSON.stringify({
+          type: 'statusUpdate',
+          data,
+          timestamp: new Date().toISOString()
+        });
 
     let successCount = 0;
     let failCount = 0;

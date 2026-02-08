@@ -104,6 +104,18 @@ class MonitoringApp {
         case 'statusUpdate':
           this.updateEquipmentStatus(message.data);
           break;
+
+        case 'equipment_added':
+          this.handleEquipmentAdded(message.data);
+          break;
+
+        case 'equipment_updated':
+          this.handleEquipmentUpdated(message.data);
+          break;
+
+        case 'equipment_removed':
+          this.handleEquipmentRemoved(message.data);
+          break;
           
         case 'pong':
           // Handle pong response if needed
@@ -162,6 +174,11 @@ class MonitoringApp {
    * Update equipment status
    */
   updateEquipmentStatus(status) {
+    if (!status || !status.equipmentId) {
+      console.warn('Invalid status update received:', status);
+      return;
+    }
+
     if (!this.equipmentData[status.equipmentId]) {
       this.equipmentData[status.equipmentId] = {
         id: status.equipmentId,
@@ -231,6 +248,12 @@ class MonitoringApp {
     connectionIndicator.className = `connection-indicator ${equipment.connected ? 'connected' : 'disconnected'}`;
     connectionIndicator.textContent = equipment.connected ? '● Online' : '● Offline';
     
+    // Update IP
+    const ipValue = card.querySelector('.ip-value');
+    if (ipValue) {
+      ipValue.textContent = equipment.ip || 'N/A';
+    }
+    
     // Update port
     const portValue = card.querySelector('.port-value');
     if (portValue) {
@@ -263,6 +286,35 @@ class MonitoringApp {
     
     // Add status class to card
     card.className = `equipment-card ${equipment.status ? equipment.status.toLowerCase() : ''}`;
+
+    // Setup event listeners for card buttons
+    this.setupCardEventListeners(card, equipmentId);
+  }
+
+  /**
+   * Setup event listeners for equipment card buttons
+   */
+  setupCardEventListeners(card, equipmentId) {
+    // Card menu button
+    const menuBtn = card.querySelector('.card-menu-btn');
+    if (menuBtn) {
+      menuBtn.onclick = (e) => {
+        e.stopPropagation();
+        showCardMenu(e.target, equipmentId);
+      };
+    }
+
+    // Edit IP button
+    const editIpBtn = card.querySelector('.edit-ip-btn');
+    if (editIpBtn) {
+      editIpBtn.onclick = () => editEquipmentField(equipmentId, 'ip');
+    }
+
+    // Edit Port button
+    const editPortBtn = card.querySelector('.edit-port-btn');
+    if (editPortBtn) {
+      editPortBtn.onclick = () => editEquipmentField(equipmentId, 'port');
+    }
   }
 
   /**
@@ -314,6 +366,12 @@ class MonitoringApp {
    * Setup event listeners
    */
   setupEventListeners() {
+    // Add equipment button
+    const addBtn = document.getElementById('add-equipment-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => openAddEquipmentModal());
+    }
+
     // Send periodic ping to keep connection alive
     setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -321,9 +379,712 @@ class MonitoringApp {
       }
     }, 30000); // Every 30 seconds
   }
+
+  /**
+   * Handle equipment added event
+   */
+  handleEquipmentAdded(data) {
+    this.equipmentData[data.id] = {
+      id: data.id,
+      name: data.name,
+      ip: data.ip,
+      port: data.port,
+      status: null,
+      path: null,
+      timestamp: null,
+      connected: false
+    };
+    
+    this.renderEquipmentCards();
+    showNotification(`Equipment '${data.name}' added successfully`, 'success');
+  }
+
+  /**
+   * Handle equipment updated event
+   */
+  handleEquipmentUpdated(data) {
+    if (this.equipmentData[data.id]) {
+      Object.assign(this.equipmentData[data.id], data.equipment);
+      this.updateEquipmentCard(data.id);
+      showNotification(`Equipment '${data.equipment.name}' updated`, 'success');
+    }
+  }
+
+  /**
+   * Handle equipment removed event
+   */
+  handleEquipmentRemoved(data) {
+    delete this.equipmentData[data.id];
+    const card = document.querySelector(`[data-equipment-id="${data.id}"]`);
+    if (card) {
+      card.remove();
+    }
+    showNotification(`Equipment '${data.name}' deleted`, 'info');
+  }
 }
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  new MonitoringApp();
+  window.monitoringApp = new MonitoringApp();
+  setupModalHandlers();
 });
+
+// ==================== Equipment Management Functions ====================
+
+let currentEquipmentId = null;
+
+/**
+ * Setup modal form handlers
+ */
+function setupModalHandlers() {
+  // Add Equipment Form
+  const addForm = document.getElementById('add-equipment-form');
+  if (addForm) {
+    addForm.addEventListener('submit', handleAddEquipment);
+  }
+
+  // Equipment type selector
+  const typeSelect = document.getElementById('equipment-type-select');
+  if (typeSelect) {
+    typeSelect.addEventListener('change', handleEquipmentTypeChange);
+  }
+
+  // IP mode radio buttons
+  document.querySelectorAll('input[name="ip-mode"]').forEach(radio => {
+    radio.addEventListener('change', handleIpModeChange);
+  });
+
+  document.querySelectorAll('input[name="edit-ip-mode"]').forEach(radio => {
+    radio.addEventListener('change', handleEditIpModeChange);
+  });
+
+  // Real-time validation
+  const nameInput = document.getElementById('equipment-name');
+  if (nameInput) {
+    nameInput.addEventListener('input', validateEquipmentName);
+  }
+
+  const ipInput = document.getElementById('equipment-ip');
+  if (ipInput) {
+    ipInput.addEventListener('input', validateIpAddress);
+  }
+
+  const portInput = document.getElementById('equipment-port');
+  if (portInput) {
+    portInput.addEventListener('input', validatePortNumber);
+  }
+
+  // Edit Equipment Form
+  const editForm = document.getElementById('edit-equipment-form');
+  if (editForm) {
+    editForm.addEventListener('submit', handleEditEquipment);
+  }
+
+  const editNameInput = document.getElementById('edit-equipment-name');
+  if (editNameInput) {
+    editNameInput.addEventListener('input', validateEditEquipmentName);
+  }
+
+  const editIpInput = document.getElementById('edit-equipment-ip');
+  if (editIpInput) {
+    editIpInput.addEventListener('input', validateEditIpAddress);
+  }
+
+  const editPortInput = document.getElementById('edit-equipment-port');
+  if (editPortInput) {
+    editPortInput.addEventListener('input', validateEditPortNumber);
+  }
+
+  // Close modals on backdrop click
+  document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+  });
+}
+
+/**
+ * Open Add Equipment Modal
+ */
+function openAddEquipmentModal() {
+  const modal = document.getElementById('add-equipment-modal');
+  modal.style.display = 'flex';
+  
+  // Reset form
+  document.getElementById('add-equipment-form').reset();
+  document.getElementById('equipment-name').style.display = 'none';
+  document.getElementById('equipment-ip').style.display = 'none';
+  document.getElementById('equipment-id').value = '';
+  
+  // Clear feedback
+  clearFeedback();
+  
+  // Get next available port
+  fetch('/api/equipment/next-port')
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('equipment-port').value = data.port;
+    });
+}
+
+/**
+ * Close Add Equipment Modal
+ */
+function closeAddEquipmentModal() {
+  document.getElementById('add-equipment-modal').style.display = 'none';
+}
+
+/**
+ * Handle equipment type selection
+ */
+function handleEquipmentTypeChange(e) {
+  const value = e.target.value;
+  const nameInput = document.getElementById('equipment-name');
+  const portInput = document.getElementById('equipment-port');
+  const idInput = document.getElementById('equipment-id');
+
+  if (value === 'custom') {
+    nameInput.style.display = 'block';
+    nameInput.value = '';
+    nameInput.focus();
+    idInput.value = '';
+  } else if (value && EQUIPMENT_PRESETS[value]) {
+    nameInput.style.display = 'none';
+    const preset = EQUIPMENT_PRESETS[value];
+    nameInput.value = preset.name;
+    portInput.value = preset.defaultPort;
+    idInput.value = value;
+    validatePortNumber();
+  } else {
+    nameInput.style.display = 'none';
+    nameInput.value = '';
+    idInput.value = '';
+  }
+}
+
+/**
+ * Handle IP mode change
+ */
+function handleIpModeChange(e) {
+  const ipInput = document.getElementById('equipment-ip');
+  if (e.target.value === 'manual') {
+    ipInput.style.display = 'block';
+    ipInput.required = true;
+  } else {
+    ipInput.style.display = 'none';
+    ipInput.required = false;
+    ipInput.value = '';
+  }
+}
+
+/**
+ * Handle Edit IP mode change
+ */
+function handleEditIpModeChange(e) {
+  const ipInput = document.getElementById('edit-equipment-ip');
+  if (e.target.value === 'manual') {
+    ipInput.style.display = 'block';
+    ipInput.required = true;
+  } else {
+    ipInput.style.display = 'none';
+    ipInput.required = false;
+  }
+}
+
+/**
+ * Validate equipment name
+ */
+function validateEquipmentName() {
+  const nameInput = document.getElementById('equipment-name');
+  const idInput = document.getElementById('equipment-id');
+  const feedback = document.getElementById('name-feedback');
+  
+  const name = nameInput.value.trim();
+  
+  if (name.length < 3) {
+    showFeedback(feedback, 'Name must be at least 3 characters', 'error');
+    return false;
+  }
+  
+  if (name.length > 50) {
+    showFeedback(feedback, 'Name must be less than 50 characters', 'error');
+    return false;
+  }
+  
+  // Generate ID
+  const id = generateEquipmentId(name);
+  idInput.value = id;
+  
+  showFeedback(feedback, '✅ Valid name', 'success');
+  return true;
+}
+
+/**
+ * Validate IP address
+ */
+async function validateIpAddress() {
+  const ipInput = document.getElementById('equipment-ip');
+  const feedback = document.getElementById('ip-feedback');
+  
+  const ip = ipInput.value.trim();
+  
+  if (!ip) {
+    clearFeedback(feedback);
+    return false;
+  }
+  
+  try {
+    const response = await fetch(`/api/equipment/validate-ip?ip=${encodeURIComponent(ip)}`);
+    const data = await response.json();
+    
+    if (data.valid) {
+      showFeedback(feedback, '✅ Valid IPv4 address', 'success');
+      return true;
+    } else {
+      showFeedback(feedback, `❌ ${data.error}`, 'error');
+      return false;
+    }
+  } catch (error) {
+    showFeedback(feedback, '❌ Error validating IP', 'error');
+    return false;
+  }
+}
+
+/**
+ * Validate port number
+ */
+async function validatePortNumber() {
+  const portInput = document.getElementById('equipment-port');
+  const feedback = document.getElementById('port-feedback');
+  
+  const port = portInput.value;
+  
+  if (!port) {
+    clearFeedback(feedback);
+    return false;
+  }
+  
+  try {
+    const response = await fetch(`/api/equipment/check-port?port=${port}`);
+    const data = await response.json();
+    
+    if (data.available) {
+      showFeedback(feedback, '✅ Port is available', 'success');
+      return true;
+    } else {
+      showFeedback(feedback, `❌ Port ${port} is used by ${data.usedBy}. Try ${data.suggestedPort}`, 'error');
+      return false;
+    }
+  } catch (error) {
+    showFeedback(feedback, '❌ Error checking port', 'error');
+    return false;
+  }
+}
+
+/**
+ * Handle Add Equipment form submission
+ */
+async function handleAddEquipment(e) {
+  e.preventDefault();
+  
+  const typeSelect = document.getElementById('equipment-type-select').value;
+  const nameInput = document.getElementById('equipment-name');
+  const ipMode = document.querySelector('input[name="ip-mode"]:checked').value;
+  const ipInput = document.getElementById('equipment-ip');
+  const portInput = document.getElementById('equipment-port');
+  const idInput = document.getElementById('equipment-id');
+  const enabledInput = document.getElementById('equipment-enabled');
+  
+  // Get name from select or input
+  let name;
+  if (typeSelect === 'custom') {
+    name = nameInput.value.trim();
+  } else if (typeSelect && EQUIPMENT_PRESETS[typeSelect]) {
+    name = EQUIPMENT_PRESETS[typeSelect].name;
+  } else {
+    showNotification('Please select equipment type', 'error');
+    return;
+  }
+  
+  const ip = ipMode === 'auto' ? 'auto' : ipInput.value.trim();
+  const port = parseInt(portInput.value);
+  const id = idInput.value;
+  const enabled = enabledInput.checked;
+  
+  try {
+    const response = await fetch('/api/equipment/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, ip, port, id, enabled })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      closeAddEquipmentModal();
+      showNotification(data.message, 'success');
+    } else {
+      showNotification(data.error, 'error');
+      if (data.suggestedPort) {
+        portInput.value = data.suggestedPort;
+      }
+    }
+  } catch (error) {
+    showNotification('Error adding equipment: ' + error.message, 'error');
+  }
+}
+
+/**
+ * Open Edit Equipment Modal
+ */
+function openEditEquipmentModal(equipmentId) {
+  currentEquipmentId = equipmentId;
+  const modal = document.getElementById('edit-equipment-modal');
+  const equipment = window.monitoringApp.equipmentData[equipmentId];
+  
+  if (!equipment) {
+    showNotification('Equipment not found', 'error');
+    return;
+  }
+  
+  // Fill form
+  document.getElementById('edit-equipment-id').value = equipment.id;
+  document.getElementById('edit-equipment-name').value = equipment.name;
+  document.getElementById('edit-equipment-port').value = equipment.port;
+  document.getElementById('edit-equipment-enabled').checked = equipment.enabled !== false;
+  
+  // Set IP mode
+  const isAuto = equipment.ip === 'auto';
+  document.querySelector(`input[name="edit-ip-mode"][value="${isAuto ? 'auto' : 'manual'}"]`).checked = true;
+  
+  const editIpInput = document.getElementById('edit-equipment-ip');
+  if (isAuto) {
+    editIpInput.style.display = 'none';
+    editIpInput.value = '';
+  } else {
+    editIpInput.style.display = 'block';
+    editIpInput.value = equipment.ip;
+  }
+  
+  modal.style.display = 'flex';
+  clearFeedback();
+}
+
+/**
+ * Close Edit Equipment Modal
+ */
+function closeEditEquipmentModal() {
+  document.getElementById('edit-equipment-modal').style.display = 'none';
+  currentEquipmentId = null;
+}
+
+/**
+ * Validate edit equipment name
+ */
+function validateEditEquipmentName() {
+  const nameInput = document.getElementById('edit-equipment-name');
+  const feedback = document.getElementById('edit-name-feedback');
+  
+  const name = nameInput.value.trim();
+  
+  if (name.length < 3) {
+    showFeedback(feedback, 'Name must be at least 3 characters', 'error');
+    return false;
+  }
+  
+  if (name.length > 50) {
+    showFeedback(feedback, 'Name must be less than 50 characters', 'error');
+    return false;
+  }
+  
+  showFeedback(feedback, '✅ Valid name', 'success');
+  return true;
+}
+
+/**
+ * Validate edit IP address
+ */
+async function validateEditIpAddress() {
+  const ipInput = document.getElementById('edit-equipment-ip');
+  const feedback = document.getElementById('edit-ip-feedback');
+  
+  if (ipInput.style.display === 'none') {
+    clearFeedback(feedback);
+    return true;
+  }
+  
+  const ip = ipInput.value.trim();
+  
+  if (!ip) {
+    clearFeedback(feedback);
+    return false;
+  }
+  
+  try {
+    const response = await fetch(`/api/equipment/validate-ip?ip=${encodeURIComponent(ip)}`);
+    const data = await response.json();
+    
+    if (data.valid) {
+      showFeedback(feedback, '✅ Valid IPv4 address', 'success');
+      return true;
+    } else {
+      showFeedback(feedback, `❌ ${data.error}`, 'error');
+      return false;
+    }
+  } catch (error) {
+    showFeedback(feedback, '❌ Error validating IP', 'error');
+    return false;
+  }
+}
+
+/**
+ * Validate edit port number
+ */
+async function validateEditPortNumber() {
+  const portInput = document.getElementById('edit-equipment-port');
+  const feedback = document.getElementById('edit-port-feedback');
+  
+  const port = portInput.value;
+  
+  if (!port) {
+    clearFeedback(feedback);
+    return false;
+  }
+  
+  try {
+    const response = await fetch(`/api/equipment/check-port?port=${port}&excludeId=${currentEquipmentId}`);
+    const data = await response.json();
+    
+    if (data.available) {
+      showFeedback(feedback, '✅ Port is available', 'success');
+      return true;
+    } else {
+      showFeedback(feedback, `❌ Port ${port} is used by ${data.usedBy}`, 'error');
+      return false;
+    }
+  } catch (error) {
+    showFeedback(feedback, '❌ Error checking port', 'error');
+    return false;
+  }
+}
+
+/**
+ * Handle Edit Equipment form submission
+ */
+async function handleEditEquipment(e) {
+  e.preventDefault();
+  
+  const id = currentEquipmentId;
+  const name = document.getElementById('edit-equipment-name').value.trim();
+  const ipMode = document.querySelector('input[name="edit-ip-mode"]:checked').value;
+  const ipInput = document.getElementById('edit-equipment-ip');
+  const ip = ipMode === 'auto' ? 'auto' : ipInput.value.trim();
+  const port = parseInt(document.getElementById('edit-equipment-port').value);
+  const enabled = document.getElementById('edit-equipment-enabled').checked;
+  
+  try {
+    const response = await fetch(`/api/equipment/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, ip, port, enabled })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      closeEditEquipmentModal();
+      showNotification(data.message, 'success');
+    } else {
+      showNotification(data.error, 'error');
+    }
+  } catch (error) {
+    showNotification('Error updating equipment: ' + error.message, 'error');
+  }
+}
+
+/**
+ * Delete equipment
+ */
+function deleteEquipment() {
+  const equipment = window.monitoringApp.equipmentData[currentEquipmentId];
+  
+  if (!equipment) {
+    showNotification('Equipment not found', 'error');
+    return;
+  }
+  
+  // Show confirmation dialog
+  document.getElementById('delete-equipment-name').textContent = equipment.name;
+  document.getElementById('delete-equipment-ip').textContent = equipment.ip;
+  document.getElementById('delete-equipment-port').textContent = equipment.port;
+  
+  document.getElementById('edit-equipment-modal').style.display = 'none';
+  document.getElementById('delete-confirm-modal').style.display = 'flex';
+}
+
+/**
+ * Close Delete Confirmation Modal
+ */
+function closeDeleteConfirmModal() {
+  document.getElementById('delete-confirm-modal').style.display = 'none';
+}
+
+/**
+ * Confirm delete equipment
+ */
+async function confirmDelete() {
+  const id = currentEquipmentId;
+  
+  try {
+    const response = await fetch(`/api/equipment/${id}`, {
+      method: 'DELETE'
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      closeDeleteConfirmModal();
+      showNotification(data.message, 'success');
+      currentEquipmentId = null;
+    } else {
+      showNotification(data.error, 'error');
+    }
+  } catch (error) {
+    showNotification('Error deleting equipment: ' + error.message, 'error');
+  }
+}
+
+/**
+ * Show card menu
+ */
+function showCardMenu(button, equipmentId) {
+  currentEquipmentId = equipmentId;
+  const menu = document.getElementById('card-menu-popup');
+  
+  // Position menu
+  const rect = button.getBoundingClientRect();
+  menu.style.top = (rect.bottom + 5) + 'px';
+  menu.style.left = (rect.left - 150) + 'px';
+  menu.style.display = 'block';
+  
+  // Close menu on click outside
+  setTimeout(() => {
+    document.addEventListener('click', closeCardMenuOnClickOutside);
+  }, 100);
+}
+
+/**
+ * Close card menu on click outside
+ */
+function closeCardMenuOnClickOutside(e) {
+  const menu = document.getElementById('card-menu-popup');
+  if (!menu.contains(e.target)) {
+    menu.style.display = 'none';
+    document.removeEventListener('click', closeCardMenuOnClickOutside);
+  }
+}
+
+/**
+ * Edit equipment from menu
+ */
+function editEquipmentFromMenu() {
+  document.getElementById('card-menu-popup').style.display = 'none';
+  openEditEquipmentModal(currentEquipmentId);
+}
+
+/**
+ * Delete equipment from menu
+ */
+function deleteEquipmentFromMenu() {
+  document.getElementById('card-menu-popup').style.display = 'none';
+  deleteEquipment();
+}
+
+/**
+ * Edit equipment field inline
+ */
+async function editEquipmentField(equipmentId, field) {
+  const equipment = window.monitoringApp.equipmentData[equipmentId];
+  if (!equipment) return;
+  
+  const currentValue = equipment[field];
+  const newValue = prompt(`Enter new ${field}:`, currentValue);
+  
+  if (!newValue || newValue === currentValue) return;
+  
+  try {
+    const response = await fetch(`/api/equipment/${equipmentId}/${field}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: field === 'port' ? parseInt(newValue) : newValue })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showNotification(`${field} updated successfully`, 'success');
+    } else {
+      showNotification(data.error, 'error');
+    }
+  } catch (error) {
+    showNotification(`Error updating ${field}: ` + error.message, 'error');
+  }
+}
+
+/**
+ * Generate equipment ID from name
+ */
+function generateEquipmentId(name) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
+ * Show feedback message
+ */
+function showFeedback(element, message, type) {
+  if (!element) return;
+  element.textContent = message;
+  element.className = `form-feedback ${type}`;
+  element.style.display = 'block';
+}
+
+/**
+ * Clear feedback message
+ */
+function clearFeedback(element) {
+  if (element) {
+    element.textContent = '';
+    element.style.display = 'none';
+  } else {
+    // Clear all feedback
+    document.querySelectorAll('.form-feedback').forEach(el => {
+      el.textContent = '';
+      el.style.display = 'none';
+    });
+  }
+}
+
+/**
+ * Show notification toast
+ */
+function showNotification(message, type = 'info') {
+  const toast = document.getElementById('notification-toast');
+  const messageEl = document.getElementById('notification-message');
+  
+  messageEl.textContent = message;
+  toast.className = `toast ${type}`;
+  toast.style.display = 'block';
+  
+  setTimeout(() => {
+    toast.style.display = 'none';
+  }, 3000);
+}
+
