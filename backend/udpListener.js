@@ -209,6 +209,63 @@ class MultiPortUDPListener {
   }
 
   /**
+   * Add new equipment listener
+   * @param {object} equipment - Equipment configuration
+   */
+  addEquipment(equipment) {
+    if (this.sockets.has(equipment.port)) {
+      throw new Error(`Port ${equipment.port} is already in use`);
+    }
+
+    this.startEquipmentListener(equipment);
+    console.log(`[UDP] ✅ Added ${equipment.name} on port ${equipment.port}`);
+  }
+
+  /**
+   * Remove equipment listener
+   * @param {string} equipmentId - Equipment ID
+   */
+  removeEquipment(equipmentId) {
+    // Find equipment by ID
+    let portToRemove = null;
+    for (const [port, equipment] of this.equipmentMap) {
+      if (equipment.id === equipmentId) {
+        portToRemove = port;
+        break;
+      }
+    }
+
+    if (portToRemove !== null) {
+      const socket = this.sockets.get(portToRemove);
+      if (socket) {
+        socket.close();
+        this.sockets.delete(portToRemove);
+      }
+      this.equipmentMap.delete(portToRemove);
+      console.log(`[UDP] ✅ Removed equipment on port ${portToRemove}`);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Update equipment IP address
+   * @param {string} equipmentId - Equipment ID
+   * @param {string} newIP - New IP address
+   */
+  updateEquipmentIP(equipmentId, newIP) {
+    for (const [port, equipment] of this.equipmentMap) {
+      if (equipment.id === equipmentId) {
+        equipment.ip = newIP;
+        console.log(`[UDP] ✅ Updated ${equipment.name} IP to ${newIP}`);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Stops the UDP listener
    */
   stop() {
