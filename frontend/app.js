@@ -174,6 +174,11 @@ class MonitoringApp {
    * Update equipment status
    */
   updateEquipmentStatus(status) {
+    if (!status || !status.equipmentId) {
+      console.warn('Invalid status update received:', status);
+      return;
+    }
+
     if (!this.equipmentData[status.equipmentId]) {
       this.equipmentData[status.equipmentId] = {
         id: status.equipmentId,
