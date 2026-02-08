@@ -6,9 +6,13 @@ A real-time monitoring system for aviation navigation equipment that receives UD
 
 ## 🚀 Want to Run This Right Now?
 
-**👉 See [QUICKSTART.md](QUICKSTART.md) for a 5-minute guide to get started!**
+**👉 Choose your preferred guide:**
 
-Three simple commands:
+- **[QUICKSTART.md](QUICKSTART.md)** - Comprehensive 5-minute guide with troubleshooting
+- **[VISUAL_GUIDE.md](VISUAL_GUIDE.md)** - Step-by-step with screenshots and visual examples
+- **[HOW_TO_RUN.txt](HOW_TO_RUN.txt)** - Plain text format for easy copying
+
+**Quick Commands:**
 ```bash
 npm install          # Install dependencies
 npm start            # Start server → http://localhost:3000
