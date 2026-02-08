@@ -7,6 +7,7 @@
     "start": "node backend/server.js",
     "dev": "node backend/server.js",
     "simulator": "node simulator/udpSimulator.js",
+    "configure-firewall": "node scripts/configure-firewall.js",
     "test": "echo \"Note: Automated tests not yet implemented. Use 'npm run simulator' to test the system manually.\" && exit 0"
   },
   "keywords": [

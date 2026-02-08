@@ -1,6 +1,6 @@
 /**
- * UDP Listener
- * Listens for UDP packets from navigation equipment
+ * Multi-Port UDP Listener
+ * Listens for UDP packets from navigation equipment on dedicated ports
  */
 
 const dgram = require('dgram');
@@ -8,98 +8,111 @@ const config = require('./config');
 const icdDecoder = require('./icdDecoder');
 const equipmentManager = require('./equipmentManager');
 
-class UDPListener {
+class MultiPortUDPListener {
   constructor() {
-    this.socket = null;
-    this.port = config.server.udpPort;
-    this.host = config.server.host;
+    this.sockets = new Map(); // Map<port, socket>
+    this.equipmentMap = new Map(); // Map<port, equipmentConfig>
     this.onStatusUpdate = null; // Callback for status updates
   }
 
   /**
-   * Starts the UDP listener
+   * Starts the multi-port UDP listener
    */
   start(onStatusUpdate) {
     this.onStatusUpdate = onStatusUpdate;
     
-    this.socket = dgram.createSocket('udp4');
+    const equipment = config.getEnabledEquipment();
+    
+    if (equipment.length === 0) {
+      console.warn('[UDP] No enabled equipment found in configuration');
+      return;
+    }
 
-    this.socket.on('error', (err) => {
-      console.error(`UDP Socket Error: ${err.message}`);
-      this.socket.close();
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('  Multi-Port UDP Listener Starting');
+    console.log('═══════════════════════════════════════════════════════════════');
+    
+    equipment.forEach(eq => {
+      this.startEquipmentListener(eq);
     });
 
-    this.socket.on('message', (msg, rinfo) => {
-      this.handleMessage(msg, rinfo);
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(`  ✅ Multi-port listener started for ${this.sockets.size} equipment`);
+    console.log('═══════════════════════════════════════════════════════════════');
+  }
+
+  /**
+   * Starts listener for a specific equipment
+   */
+  startEquipmentListener(equipment) {
+    // Check if port is already in use
+    if (this.sockets.has(equipment.port)) {
+      console.error(`[UDP] ❌ Port ${equipment.port} already in use by another equipment`);
+      return;
+    }
+
+    // Create dedicated socket for this equipment
+    const server = dgram.createSocket('udp4');
+    
+    server.on('listening', () => {
+      const address = server.address();
+      console.log(`  ${equipment.name.padEnd(15)} → Port ${equipment.port.toString().padStart(4)} ✅ Listening`);
     });
 
-    this.socket.on('listening', () => {
-      const address = this.socket.address();
-      console.log(`UDP Listener started on ${address.address}:${address.port}`);
+    server.on('message', (msg, rinfo) => {
+      this.handleMessage(equipment, msg, rinfo);
     });
 
-    this.socket.bind(this.port, this.host);
+    server.on('error', (err) => {
+      console.error(`[UDP] ❌ Error on ${equipment.name} port ${equipment.port}: ${err.message}`);
+      // Remove from maps if error occurs
+      this.sockets.delete(equipment.port);
+      this.equipmentMap.delete(equipment.port);
+    });
+
+    // Bind to equipment's dedicated port
+    server.bind(equipment.port, config.server.host);
+    
+    // Store references
+    this.sockets.set(equipment.port, server);
+    this.equipmentMap.set(equipment.port, equipment);
   }
 
   /**
    * Handles incoming UDP messages
    */
-  handleMessage(msg, rinfo) {
+  handleMessage(equipment, msg, rinfo) {
     try {
       const sourceIp = rinfo.address;
       const sourcePort = rinfo.port;
       
       // Log received packet
-      this.logPacket(msg, sourceIp, sourcePort);
+      this.logPacket(equipment, msg, sourceIp, sourcePort);
 
-      // Identify equipment by source IP
-      let equipment = config.getEquipmentByIp(sourceIp);
+      // Validate source IP matches expected equipment IP (with localhost exception)
+      const isLocalhost = sourceIp === '127.0.0.1' || sourceIp === '::1' || sourceIp === '::ffff:127.0.0.1';
       
-      // For localhost testing (simulator), use a mapping table to maintain consistency
-      if (!equipment && (sourceIp === '127.0.0.1' || sourceIp === '::1' || sourceIp === '::ffff:127.0.0.1')) {
-        console.log(`Localhost packet from port ${sourcePort}, attempting to identify equipment...`);
-        
-        // Initialize port mapping if not exists
-        if (!this.localhostPortMap) {
-          this.localhostPortMap = new Map();
-          this.nextEquipmentIndex = 0;
-        }
-        
-        // Check if we've seen this source port before
-        if (this.localhostPortMap.has(sourcePort)) {
-          equipment = this.localhostPortMap.get(sourcePort);
-        } else {
-          // Assign next equipment to this source port
-          const allEquipment = config.getAllEquipment();
-          if (allEquipment.length > 0 && this.nextEquipmentIndex < allEquipment.length) {
-            equipment = allEquipment[this.nextEquipmentIndex];
-            this.localhostPortMap.set(sourcePort, equipment);
-            this.nextEquipmentIndex++;
-            console.log(`Assigned ${equipment.name} to source port ${sourcePort}`);
-          }
-        }
-      }
-      
-      if (!equipment) {
-        console.warn(`Unknown equipment from ${sourceIp}:${sourcePort}`);
-        // Still decode for debugging
-        const decoded = icdDecoder.decodePacket(msg);
-        console.log('Decoded data:', decoded);
-        return;
+      if (!isLocalhost && equipment.ip !== sourceIp && !config.server.allowUnknownIPs) {
+        console.warn(`[${equipment.name}] ⚠️  Source IP mismatch! Expected ${equipment.ip}, got ${sourceIp}`);
       }
 
       // Decode the packet
       const decoded = icdDecoder.decodePacket(msg);
 
       if (!decoded.valid) {
-        console.warn(`Invalid packet from ${equipment.name} (${sourceIp}): ${decoded.error}`);
+        console.warn(`[${equipment.name}] Invalid packet from ${sourceIp}: ${decoded.error}`);
         return;
       }
 
       // Update equipment status
-      const status = equipmentManager.updateStatus(equipment.id, decoded);
+      const status = equipmentManager.updateStatus(equipment.id, {
+        ...decoded,
+        sourceIP: sourceIp,
+        sourcePort: sourcePort,
+        listenPort: equipment.port
+      });
       
-      console.log(`Status Update - ${equipment.name}: ${status.path} | ${status.status}`);
+      console.log(`[${equipment.name}:${equipment.port}] Status: ${status.path} | ${status.status}`);
 
       // Notify via callback (for WebSocket broadcast)
       if (this.onStatusUpdate) {
@@ -107,19 +120,19 @@ class UDPListener {
       }
 
     } catch (error) {
-      console.error(`Error handling UDP message: ${error.message}`);
+      console.error(`[${equipment.name}] Error handling UDP message: ${error.message}`);
     }
   }
 
   /**
    * Logs packet information
    */
-  logPacket(msg, sourceIp, sourcePort) {
+  logPacket(equipment, msg, sourceIp, sourcePort) {
     const timestamp = new Date().toISOString();
     const hexDump = msg.toString('hex').match(/.{1,2}/g).join(' ');
     
     console.log('─────────────────────────────────────────────────');
-    console.log(`[${timestamp}] UDP Packet Received`);
+    console.log(`[${timestamp}] [${equipment.name}:${equipment.port}] UDP Packet`);
     console.log(`Source: ${sourceIp}:${sourcePort}`);
     console.log(`Length: ${msg.length} bytes`);
     console.log(`Hex: ${hexDump}`);
@@ -127,14 +140,87 @@ class UDPListener {
   }
 
   /**
+   * Checks if a port is listening
+   */
+  isListening(port) {
+    return this.sockets.has(port);
+  }
+
+  /**
+   * Checks if a port is in use by another equipment
+   */
+  isPortInUse(port, excludeEquipmentId = null) {
+    if (!this.sockets.has(port)) {
+      return false;
+    }
+    
+    const equipment = this.equipmentMap.get(port);
+    if (equipment && equipment.id === excludeEquipmentId) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Updates port for specific equipment
+   */
+  updatePort(equipmentId, newPort) {
+    const equipment = config.getEquipmentById(equipmentId);
+    
+    if (!equipment) {
+      throw new Error(`Equipment ${equipmentId} not found`);
+    }
+
+    // Check if new port is already in use
+    if (this.isPortInUse(newPort, equipmentId)) {
+      throw new Error(`Port ${newPort} is already in use`);
+    }
+
+    // Stop old socket
+    const oldPort = equipment.port;
+    if (this.sockets.has(oldPort)) {
+      const socket = this.sockets.get(oldPort);
+      socket.close();
+      this.sockets.delete(oldPort);
+      this.equipmentMap.delete(oldPort);
+      console.log(`[UDP] Closed ${equipment.name} port ${oldPort}`);
+    }
+
+    // Update port in equipment
+    equipment.port = newPort;
+
+    // Start new socket on new port
+    this.startEquipmentListener(equipment);
+    
+    console.log(`[UDP] ✅ ${equipment.name} moved from port ${oldPort} to ${newPort}`);
+  }
+
+  /**
+   * Gets statistics for a specific port
+   */
+  getPortInfo(port) {
+    const equipment = this.equipmentMap.get(port);
+    return {
+      port: port,
+      equipment: equipment ? equipment.name : 'Unknown',
+      listening: this.sockets.has(port)
+    };
+  }
+
+  /**
    * Stops the UDP listener
    */
   stop() {
-    if (this.socket) {
-      this.socket.close();
-      console.log('UDP Listener stopped');
-    }
+    console.log('[UDP] Stopping all listeners...');
+    this.sockets.forEach((socket, port) => {
+      socket.close();
+      console.log(`[UDP] Closed port ${port}`);
+    });
+    this.sockets.clear();
+    this.equipmentMap.clear();
+    console.log('[UDP] All listeners stopped');
   }
 }
 
-module.exports = new UDPListener();
+module.exports = new MultiPortUDPListener();
