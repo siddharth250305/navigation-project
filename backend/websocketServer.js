@@ -118,6 +118,35 @@ class WebSocketServer {
   }
 
   /**
+   * Broadcasts port change notification to all connected clients
+   */
+  broadcastPortChange(oldPort, newPort) {
+    const message = JSON.stringify({
+      type: 'port_changed',
+      data: {
+        oldPort,
+        newPort,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    let successCount = 0;
+
+    this.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+          successCount++;
+        } catch (error) {
+          console.error('Error sending port change notification:', error.message);
+        }
+      }
+    });
+
+    console.log(`Port change notification sent to ${successCount} client(s)`);
+  }
+
+  /**
    * Sends message to specific client
    */
   sendToClient(ws, data) {

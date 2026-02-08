@@ -135,6 +135,98 @@ class UDPListener {
       console.log('UDP Listener stopped');
     }
   }
+
+  /**
+   * Closes the socket gracefully
+   */
+  closeSocket() {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        resolve();
+        return;
+      }
+
+      try {
+        this.socket.close(() => {
+          console.log(`[UDP] Socket closed on port ${this.port}`);
+          this.socket = null;
+          resolve();
+        });
+      } catch (error) {
+        console.error(`[ERROR] Error closing socket: ${error.message}`);
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Updates the UDP port and restarts the listener
+   */
+  async updatePort(newPort) {
+    try {
+      const oldPort = this.port;
+      console.log(`[CONFIG] Port change requested: ${oldPort} → ${newPort}`);
+
+      // Close existing socket
+      console.log(`[UDP] Closing socket on port ${oldPort}`);
+      await this.closeSocket();
+
+      // Update port
+      this.port = newPort;
+
+      // Rebind to new port
+      return new Promise((resolve, reject) => {
+        this.socket = dgram.createSocket('udp4');
+
+        this.socket.on('error', (err) => {
+          console.error(`[ERROR] UDP Socket Error on port ${newPort}: ${err.message}`);
+          
+          // Check for specific error types
+          if (err.code === 'EADDRINUSE') {
+            reject(new Error(`Port ${newPort} is already in use`));
+          } else if (err.code === 'EACCES') {
+            reject(new Error(`Permission denied. Port ${newPort} requires administrator privileges`));
+          } else {
+            reject(new Error(`Failed to bind to port ${newPort}: ${err.message}`));
+          }
+          
+          this.socket.close();
+        });
+
+        this.socket.on('message', (msg, rinfo) => {
+          this.handleMessage(msg, rinfo);
+        });
+
+        this.socket.on('listening', () => {
+          const address = this.socket.address();
+          console.log(`[UDP] Successfully listening on ${address.address}:${address.port}`);
+          resolve({
+            success: true,
+            oldPort,
+            newPort,
+            message: 'UDP port updated successfully'
+          });
+        });
+
+        try {
+          this.socket.bind(this.port, this.host);
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+    } catch (error) {
+      console.error(`[ERROR] Failed to update port: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Gets the current port
+   */
+  getCurrentPort() {
+    return this.port;
+  }
 }
 
 module.exports = new UDPListener();

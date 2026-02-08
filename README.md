@@ -24,6 +24,7 @@ npm run simulator    # (In new terminal) Send test data
 ## Features
 
 ✅ **Real-Time UDP Monitoring** - Listens for UDP packets on configurable port (default: 4000)  
+✅ **Dynamic Port Configuration** - Change UDP port directly from dashboard without server restart  
 ✅ **ICD Monitor Byte Decoding** - Decodes monitor bytes according to ICD specifications  
 ✅ **Live Web Dashboard** - Real-time status updates via WebSocket  
 ✅ **Multiple Equipment Support** - Monitor DME, DVOR, Localizer, and Glide Path simultaneously  
@@ -183,12 +184,45 @@ The system will:
 ### Using the Dashboard
 
 The dashboard displays:
+- **Configuration Panel** - Dynamic UDP port configuration
 - **Equipment Cards** - One card per configured equipment
 - **Status Indicators** - Color-coded status (Green=Normal, Yellow=Warning, Red=Alarm)
 - **Path Information** - ACTIVE or STANDBY
 - **Connection Status** - Online/Offline indicator
 - **Last Update Time** - Timestamp of last received packet
 - **WebSocket Status** - Connection status in header
+
+### Configuring UDP Port from Dashboard
+
+You can change the UDP listening port dynamically without restarting the server:
+
+1. **Locate the Configuration Panel** at the top of the dashboard
+2. **Enter the desired port number** (must be between 1024-65535)
+3. **Click "Update Port"** button
+4. **Wait for confirmation** - Success or error message will appear
+5. **Configuration is saved automatically** to `config/equipment.json`
+
+**Screenshots:**
+
+![Configuration Panel](https://github.com/user-attachments/assets/b0920d6c-0b6b-47d3-b0f6-fbef20b79c11)
+
+![Successful Port Update](https://github.com/user-attachments/assets/fb02a7c6-abad-4ba7-a65d-abc16e3889dd)
+
+![Error Handling](https://github.com/user-attachments/assets/bd64e996-762a-4277-9c71-58a4aefba879)
+
+**Port Configuration Priority:**
+1. **Environment Variable** (`UDP_PORT` in `.env` file - highest priority, overrides all)
+2. **Config File** (`config/equipment.json` - includes dashboard changes)
+3. **Default Value** (4000 - lowest priority)
+
+**Note:** Dashboard changes are saved to the config file and take effect immediately at runtime. On server restart, the saved port from the config file will be used unless overridden by an environment variable.
+
+**Important Notes:**
+- Port changes take effect immediately
+- No server restart required
+- All WebSocket clients are notified of the change
+- Invalid ports (< 1024 or > 65535) are rejected
+- Ports already in use will show an error
 
 ### Color Coding
 
@@ -311,6 +345,62 @@ GET /api/equipment
 GET /api/health
 ```
 
+#### Get Current Configuration
+```http
+GET /api/config/current
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "udpPort": 4000,
+    "webPort": 3000,
+    "host": "0.0.0.0"
+  },
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+#### Update UDP Port
+```http
+POST /api/config/port
+Content-Type: application/json
+
+{
+  "port": 5000
+}
+```
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "UDP port updated successfully",
+  "port": 5000,
+  "oldPort": 4000,
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": "Port must be between 1024 and 65535",
+  "port": 99
+}
+```
+
+**Example:**
+```bash
+# Update to port 5000
+curl -X POST http://localhost:3000/api/config/port \
+  -H "Content-Type: application/json" \
+  -d '{"port": 5000}'
+```
+
 ### WebSocket API
 
 Connect to WebSocket:
@@ -327,6 +417,7 @@ ws.onmessage = (event) => {
 
 - `connection` - Initial connection acknowledgment
 - `statusUpdate` - Real-time equipment status update
+- `port_changed` - UDP port configuration changed
 - `pong` - Response to ping
 
 **Status Update Format:**
@@ -341,6 +432,18 @@ ws.onmessage = (event) => {
     "connected": true
   },
   "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**Port Changed Notification:**
+```json
+{
+  "type": "port_changed",
+  "data": {
+    "oldPort": 4000,
+    "newPort": 5000,
+    "timestamp": "2024-01-01T00:00:00.000Z"
+  }
 }
 ```
 
@@ -460,6 +563,42 @@ B7 B6 B5 B4 B3 B2 B1 B0
 1. **Check IP configuration** in `config/equipment.json`
 2. **Verify source IP** in server logs matches configured IP
 3. **Check connection timeout** (default: 30 seconds)
+
+### Port Configuration Issues
+
+**Problem:** Cannot change UDP port from dashboard
+
+**Solutions:**
+
+1. **Port already in use:**
+   ```bash
+   # Check what's using the port
+   sudo lsof -i :5000
+   # Or
+   netstat -an | grep 5000
+   ```
+
+2. **Permission denied (port < 1024):**
+   - Only use ports 1024-65535 (non-privileged ports)
+   - Or run with sudo (not recommended)
+
+3. **Port validation errors:**
+   - Ensure port is a number between 1024 and 65535
+   - Check browser console for JavaScript errors
+
+4. **Configuration not persisting:**
+   - Check write permissions on `config/equipment.json`
+   - Verify server logs for save errors
+
+**Example: Change port to 5000**
+```bash
+# Via API
+curl -X POST http://localhost:3000/api/config/port \
+  -H "Content-Type: application/json" \
+  -d '{"port": 5000}'
+
+# Via Dashboard UI - use the Configuration panel
+```
 
 ## Deployment
 
