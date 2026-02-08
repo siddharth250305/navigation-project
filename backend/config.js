@@ -65,10 +65,6 @@ class Config {
     return this.equipment;
   }
 
-  getEquipment() {
-    return this.equipment;
-  }
-
   getEnabledEquipment() {
     return this.equipment.filter(eq => eq.enabled !== false);
   }

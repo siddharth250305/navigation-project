@@ -432,13 +432,17 @@ sudo tcpdump -i any -n 'udp portrange 4000-4003' -X
 
 #### Using Wireshark:
 
-Filter: `udp.port >= 4000 && udp.port <= 4003`
-
+**To monitor all equipment ports:**
 1. Open Wireshark
-2. Set capture filter: `udp.port == 4000`
+2. Set display filter: `udp.port >= 4000 && udp.port <= 4003`
 3. Start capture
 4. Run simulator or send test packets
-5. Verify packets are received
+5. Verify packets are received on different ports
+
+**To monitor a specific equipment:**
+1. Open Wireshark
+2. Set display filter: `udp.port == 4000` (for DME, adjust port number for other equipment)
+3. Start capture
 
 ## API Documentation
 
