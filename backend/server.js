@@ -124,14 +124,138 @@ app.get('/api/equipment', (req, res) => {
 });
 
 /**
+ * GET /api/equipment/ports
+ * Get all equipment with port information
+ */
+app.get('/api/equipment/ports', (req, res) => {
+  try {
+    const equipment = config.getAllEquipment();
+    const portsInfo = equipment.map(eq => ({
+      id: eq.id,
+      name: eq.name,
+      ip: eq.ip,
+      port: eq.port,
+      enabled: eq.enabled !== false,
+      listening: udpListener.isListening(eq.port),
+      lastPacket: equipmentManager.getLastUpdate(eq.id)
+    }));
+    res.json({ 
+      success: true, 
+      equipment: portsInfo,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting ports info:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/equipment/:id/port
+ * Update individual equipment port
+ */
+app.post('/api/equipment/:id/port', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { port } = req.body;
+    
+    // Validate port
+    if (!port || port < 1024 || port > 65535) {
+      return res.status(400).json({
+        success: false,
+        error: 'Port must be between 1024 and 65535'
+      });
+    }
+    
+    // Check if port is already in use
+    if (udpListener.isPortInUse(port, id)) {
+      return res.status(409).json({
+        success: false,
+        error: `Port ${port} is already in use by another equipment`
+      });
+    }
+    
+    // Update port
+    udpListener.updatePort(id, port);
+    config.updateEquipmentPort(id, port);
+    config.save();
+    
+    // Broadcast change via WebSocket
+    websocketServer.broadcast({
+      type: 'port_changed',
+      equipment: id,
+      port: port
+    });
+    
+    res.json({
+      success: true,
+      message: `Port updated to ${port} for ${id}`,
+      port: port
+    });
+  } catch (error) {
+    console.error('Error updating port:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/equipment/ports/batch
+ * Batch update all ports
+ */
+app.post('/api/equipment/ports/batch', (req, res) => {
+  try {
+    const { updates } = req.body; // Array of {id, port}
+    
+    if (!Array.isArray(updates)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Updates must be an array'
+      });
+    }
+    
+    const results = updates.map(update => {
+      try {
+        udpListener.updatePort(update.id, update.port);
+        config.updateEquipmentPort(update.id, update.port);
+        return { id: update.id, port: update.port, success: true };
+      } catch (error) {
+        return { id: update.id, port: update.port, success: false, error: error.message };
+      }
+    });
+    
+    config.save();
+    
+    res.json({
+      success: true,
+      results: results
+    });
+  } catch (error) {
+    console.error('Error batch updating ports:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/health
  * Health check endpoint
  */
 app.get('/api/health', (req, res) => {
+  const equipment = config.getAllEquipment();
+  const ports = equipment.map(eq => eq.port).filter((v, i, a) => a.indexOf(v) === i); // unique ports
+  
   res.json({
     success: true,
     status: 'running',
-    udpPort: config.server.udpPort,
+    ports: ports,
     webPort: config.server.webPort,
     connectedClients: websocketServer.getClientCount(),
     timestamp: new Date().toISOString()
@@ -171,12 +295,12 @@ const server = app.listen(PORT, () => {
   console.log('═══════════════════════════════════════════════════════════════');
   console.log(`  Web Dashboard: http://localhost:${PORT}`);
   console.log(`  API Endpoint:  http://localhost:${PORT}/api`);
-  console.log(`  UDP Listener:  Port ${config.server.udpPort}`);
   console.log('═══════════════════════════════════════════════════════════════');
-  console.log('  Configured Equipment:');
+  console.log('  Configured Equipment (Multi-Port):');
   
   config.getAllEquipment().forEach(eq => {
-    console.log(`    - ${eq.name.padEnd(15)} ${eq.ip}:${eq.port}`);
+    const status = eq.enabled !== false ? '✅' : '⏸️ ';
+    console.log(`    ${status} ${eq.name.padEnd(15)} ${eq.ip.padEnd(15)} Port ${eq.port}`);
   });
   
   console.log('═══════════════════════════════════════════════════════════════');

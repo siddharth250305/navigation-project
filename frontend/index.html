@@ -31,7 +31,7 @@
                     <ul class="troubleshooting">
                         <li>✓ Check that equipment is powered on and connected</li>
                         <li>✓ Verify IP addresses in configuration</li>
-                        <li>✓ Ensure firewall allows UDP traffic on port 4000</li>
+                        <li>✓ Ensure firewall allows UDP traffic on ports 4000-4003</li>
                         <li>✓ Run the simulator for testing: <code>npm run simulator</code></li>
                     </ul>
                 </div>
@@ -39,7 +39,7 @@
         </main>
 
         <footer>
-            <p>Real-Time UDP Monitoring System | Port: 4000 | WebSocket: Active</p>
+            <p>Real-Time UDP Monitoring System | Multi-Port Listener (4000-4003) | WebSocket: Active</p>
         </footer>
     </div>
 
@@ -51,6 +51,14 @@
                 <span class="connection-indicator"></span>
             </div>
             <div class="card-body">
+                <div class="status-row">
+                    <span class="label">Port:</span>
+                    <span class="port-value"></span>
+                </div>
+                <div class="status-row">
+                    <span class="label">Source IP:</span>
+                    <span class="source-ip-value"></span>
+                </div>
                 <div class="status-row">
                     <span class="label">Path:</span>
                     <span class="path-badge"></span>

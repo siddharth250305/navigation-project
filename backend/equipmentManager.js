@@ -23,7 +23,10 @@ class EquipmentManager {
       timestamp,
       lastUpdate: timestamp,
       connected: true,
-      rawData: statusData.rawByte !== undefined ? statusData.rawByte : null
+      rawData: statusData.rawByte !== undefined ? statusData.rawByte : null,
+      sourceIP: statusData.sourceIP || null,
+      sourcePort: statusData.sourcePort || null,
+      listenPort: statusData.listenPort || null
     };
 
     // Update current status
@@ -78,6 +81,14 @@ class EquipmentManager {
   getHistory(equipmentId, limit = 50) {
     const history = this.eventHistory.get(equipmentId) || [];
     return history.slice(0, limit);
+  }
+
+  /**
+   * Gets last update timestamp for equipment
+   */
+  getLastUpdate(equipmentId) {
+    const status = this.equipmentStatus.get(equipmentId);
+    return status ? status.timestamp : null;
   }
 
   /**

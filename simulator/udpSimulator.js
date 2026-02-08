@@ -1,6 +1,7 @@
 /**
  * UDP Packet Simulator
  * Simulates UDP packets from navigation equipment for testing
+ * Each equipment sends to its own dedicated port
  */
 
 const dgram = require('dgram');
@@ -44,12 +45,11 @@ class ICDEncoder {
   }
 }
 
-class UDPSimulator {
+class MultiPortUDPSimulator {
   constructor() {
     this.encoder = new ICDEncoder();
-    this.equipment = config.equipment;
+    this.equipment = config.equipment.filter(eq => eq.enabled !== false);
     this.targetHost = '127.0.0.1'; // localhost for testing
-    this.targetPort = config.server?.udpPort || 4000;
     this.interval = 5000; // Send packet every 5 seconds
     this.currentStateIndex = 0;
     
@@ -103,7 +103,7 @@ class UDPSimulator {
   }
 
   /**
-   * Sends packet from specific equipment
+   * Sends packet from specific equipment to its dedicated port
    */
   sendPacket(equipmentId) {
     const eq = this.equipmentStates[equipmentId];
@@ -111,16 +111,15 @@ class UDPSimulator {
     
     const packet = this.createPacket(state.path, state.status);
     
-    // Send packet without binding to specific source port
-    // The OS will assign a random source port
-    eq.socket.send(packet, this.targetPort, this.targetHost, (err) => {
+    // Send to equipment's dedicated port
+    eq.socket.send(packet, eq.port, this.targetHost, (err) => {
       if (err) {
         console.error(`Error sending packet for ${eq.name}:`, err.message);
       } else {
         const timestamp = new Date().toISOString();
         console.log(
-          `[${timestamp}] ${eq.name.padEnd(12)} → ${state.path.padEnd(8)} | ` +
-          `${state.status.padEnd(8)} | Byte: 0x${packet[4].toString(16).padStart(2, '0')}`
+          `[${timestamp}] ${eq.name.padEnd(12)} → Port ${eq.port.toString().padStart(4)} | ` +
+          `${state.path.padEnd(8)} | ${state.status.padEnd(8)} | Byte: 0x${packet[4].toString(16).padStart(2, '0')}`
         );
       }
     });
@@ -134,16 +133,16 @@ class UDPSimulator {
    */
   start() {
     console.log('═══════════════════════════════════════════════════════════════');
-    console.log('  UDP Packet Simulator Started');
+    console.log('  Multi-Port UDP Packet Simulator Started');
     console.log('═══════════════════════════════════════════════════════════════');
-    console.log(`  Target: ${this.targetHost}:${this.targetPort}`);
+    console.log(`  Target Host: ${this.targetHost}`);
     console.log(`  Interval: ${this.interval}ms`);
     console.log(`  Equipment Count: ${this.equipment.length}`);
     console.log('═══════════════════════════════════════════════════════════════');
-    console.log('  Simulating Equipment:');
+    console.log('  Equipment → Port Mapping:');
     
     this.equipment.forEach(eq => {
-      console.log(`    - ${eq.name}`);
+      console.log(`    ${eq.name.padEnd(15)} → Port ${eq.port}`);
     });
     
     console.log('═══════════════════════════════════════════════════════════════');
@@ -183,7 +182,7 @@ class UDPSimulator {
 
 // ==================== Main ====================
 
-const simulator = new UDPSimulator();
+const simulator = new MultiPortUDPSimulator();
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
