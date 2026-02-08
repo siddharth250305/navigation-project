@@ -2,6 +2,21 @@
 
 A real-time monitoring system for aviation navigation equipment that receives UDP packets directly from navigation aids (DME, DVOR, Localizer, Glide Path), decodes ICD-defined monitor bytes, and displays equipment health status on a live web dashboard.
 
+---
+
+## 🚀 Want to Run This Right Now?
+
+**👉 See [QUICKSTART.md](QUICKSTART.md) for a 5-minute guide to get started!**
+
+Three simple commands:
+```bash
+npm install          # Install dependencies
+npm start            # Start server → http://localhost:3000
+npm run simulator    # (In new terminal) Send test data
+```
+
+---
+
 ## Features
 
 ✅ **Real-Time UDP Monitoring** - Listens for UDP packets on configurable port (default: 4000)  
