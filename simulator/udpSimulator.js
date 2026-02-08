@@ -111,21 +111,8 @@ class UDPSimulator {
     
     const packet = this.createPacket(state.path, state.status);
     
-    // Set source port to match equipment configuration
-    // Note: We can't actually set source IP in localhost simulation,
-    // but we can vary the source port to distinguish equipment
-    const sourcePort = eq.port + parseInt(eq.id.charCodeAt(eq.id.length - 1) || 0);
-    
-    // Bind socket to specific port if not already bound
-    if (!eq.socket._bound) {
-      try {
-        eq.socket.bind(sourcePort);
-        eq.socket._bound = true;
-      } catch (error) {
-        console.error(`Error binding socket for ${eq.name}:`, error.message);
-      }
-    }
-    
+    // Send packet without binding to specific source port
+    // The OS will assign a random source port
     eq.socket.send(packet, this.targetPort, this.targetHost, (err) => {
       if (err) {
         console.error(`Error sending packet for ${eq.name}:`, err.message);
