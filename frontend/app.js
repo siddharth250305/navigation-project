@@ -175,7 +175,10 @@ class MonitoringApp {
       status: status.status,
       path: status.path,
       timestamp: status.timestamp,
-      connected: status.connected
+      connected: status.connected,
+      sourceIP: status.sourceIP,
+      sourcePort: status.sourcePort,
+      listenPort: status.listenPort
     };
     
     this.updateEquipmentCard(status.equipmentId);
@@ -227,6 +230,18 @@ class MonitoringApp {
     const connectionIndicator = card.querySelector('.connection-indicator');
     connectionIndicator.className = `connection-indicator ${equipment.connected ? 'connected' : 'disconnected'}`;
     connectionIndicator.textContent = equipment.connected ? '● Online' : '● Offline';
+    
+    // Update port
+    const portValue = card.querySelector('.port-value');
+    if (portValue) {
+      portValue.textContent = equipment.listenPort || equipment.port || 'N/A';
+    }
+    
+    // Update source IP
+    const sourceIpValue = card.querySelector('.source-ip-value');
+    if (sourceIpValue) {
+      sourceIpValue.textContent = equipment.sourceIP || 'N/A';
+    }
     
     // Update path
     const pathBadge = card.querySelector('.path-badge');

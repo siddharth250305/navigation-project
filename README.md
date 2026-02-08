@@ -23,16 +23,19 @@ npm run simulator    # (In new terminal) Send test data
 
 ## Features
 
-✅ **Real-Time UDP Monitoring** - Listens for UDP packets on configurable port (default: 4000)  
+✅ **Multi-Port UDP Monitoring** - Dedicated UDP port for each equipment (4000-4003)  
 ✅ **ICD Monitor Byte Decoding** - Decodes monitor bytes according to ICD specifications  
 ✅ **Live Web Dashboard** - Real-time status updates via WebSocket  
 ✅ **Multiple Equipment Support** - Monitor DME, DVOR, Localizer, and Glide Path simultaneously  
+✅ **Port-Based Identification** - Equipment identified by both port AND source IP  
 ✅ **Status Indicators** - Visual representation of NORMAL/WARNING/ALARM states  
 ✅ **Path Monitoring** - ACTIVE/STANDBY path indication  
 ✅ **Connection Status** - Real-time connection monitoring  
 ✅ **Event History** - Historical data for each equipment  
 ✅ **REST API** - Programmatic access to status and history  
+✅ **Dynamic Port Management** - Change ports via API without restart  
 ✅ **UDP Simulator** - Testing tool for development and demonstration  
+✅ **Firewall Helper** - Automated firewall configuration script  
 ✅ **Docker Support** - Easy deployment with Docker/Docker Compose  
 
 ## Table of Contents
@@ -56,6 +59,8 @@ npm run simulator    # (In new terminal) Send test data
 │  │   DME   │  │  DVOR   │  │ Localizer  │  │ Glide Path │    │
 │  └────┬────┘  └────┬────┘  └──────┬─────┘  └──────┬─────┘    │
 │       │            │               │                │           │
+│   Port 4000    Port 4001      Port 4002       Port 4003        │
+│       │            │               │                │           │
 │       └────────────┴───────────────┴────────────────┘           │
 │                          │ UDP Packets                          │
 └──────────────────────────┼──────────────────────────────────────┘
@@ -63,7 +68,11 @@ npm run simulator    # (In new terminal) Send test data
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Monitoring Server                           │
 │  ┌────────────────────────────────────────────────────────┐    │
-│  │                  UDP Listener (Port 4000)              │    │
+│  │         Multi-Port UDP Listener (4000-4003)            │    │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │    │
+│  │  │ Port 4000│ │ Port 4001│ │ Port 4002│ │ Port 4003│ │    │
+│  │  │   DME    │ │   DVOR   │ │Localizer │ │GlidePath │ │    │
+│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘ │    │
 │  └───────────────────┬────────────────────────────────────┘    │
 │                      ▼                                           │
 │  ┌────────────────────────────────────────────────────────┐    │
@@ -71,7 +80,7 @@ npm run simulator    # (In new terminal) Send test data
 │  └───────────────────┬────────────────────────────────────┘    │
 │                      ▼                                           │
 │  ┌────────────────────────────────────────────────────────┐    │
-│  │              Equipment State Manager                    │    │
+│  │         Equipment State Manager (Per-Port Stats)       │    │
 │  └───────────┬───────────────────────┬────────────────────┘    │
 │              ▼                       ▼                           │
 │  ┌─────────────────────┐  ┌─────────────────────────┐         │
@@ -83,7 +92,7 @@ npm run simulator    # (In new terminal) Send test data
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Web Dashboard                               │
 │  ┌──────────────────────────────────────────────────────┐      │
-│  │  Equipment Cards | Status | Alerts | History          │      │
+│  │  Equipment Cards | Port Info | Status | Alerts       │      │
 │  └──────────────────────────────────────────────────────┘      │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -127,7 +136,9 @@ http://localhost:3000
 
 ## Configuration
 
-### Equipment Configuration
+### Multi-Port Equipment Configuration
+
+**🎯 New Feature**: Each equipment now has its own dedicated UDP port for improved isolation and monitoring.
 
 Edit `config/equipment.json` to configure your navigation equipment:
 
@@ -138,15 +149,138 @@ Edit `config/equipment.json` to configure your navigation equipment:
       "id": "dme",
       "name": "DME",
       "ip": "192.168.1.100",
-      "port": 4000
+      "port": 4000,
+      "enabled": true
+    },
+    {
+      "id": "dvor",
+      "name": "DVOR",
+      "ip": "192.168.1.101",
+      "port": 4001,
+      "enabled": true
+    },
+    {
+      "id": "localizer",
+      "name": "Localizer",
+      "ip": "192.168.1.102",
+      "port": 4002,
+      "enabled": true
+    },
+    {
+      "id": "glidepath",
+      "name": "Glide Path",
+      "ip": "192.168.1.103",
+      "port": 4003,
+      "enabled": true
     }
   ],
   "server": {
-    "udpPort": 4000,
     "webPort": 3000,
-    "host": "0.0.0.0"
+    "host": "0.0.0.0",
+    "connectionTimeout": 30000,
+    "allowUnknownIPs": false
   }
 }
+```
+
+**Configuration Fields:**
+- `id` - Unique equipment identifier
+- `name` - Display name for the equipment
+- `ip` - Expected source IP address for packets
+- `port` - **Dedicated UDP port** for this equipment (must be unique)
+- `enabled` - Enable/disable monitoring for this equipment
+
+**Server Configuration:**
+- `webPort` - HTTP/WebSocket server port (default: 3000)
+- `host` - Bind address (0.0.0.0 = all interfaces)
+- `connectionTimeout` - Milliseconds before marking equipment as disconnected
+- `allowUnknownIPs` - Allow packets from IPs not matching equipment configuration
+
+### Multi-Port Architecture Benefits
+
+🎯 **Clear Separation** - Each equipment has dedicated port  
+🔍 **Easy Debugging** - Monitor specific port with Wireshark  
+📊 **Independent Stats** - Track packets per equipment  
+⚡ **No Confusion** - Port + IP for certain identification  
+🛡️ **Isolation** - One equipment issue doesn't affect others  
+
+### Port Configuration Table
+
+| Equipment   | Default Port | Expected Source IP |
+|-------------|--------------|-------------------|
+| DME         | 4000         | 192.168.1.100     |
+| DVOR        | 4001         | 192.168.1.101     |
+| Localizer   | 4002         | 192.168.1.102     |
+| Glide Path  | 4003         | 192.168.1.103     |
+
+### Firewall Configuration
+
+#### Automated Configuration
+
+Use the included firewall helper script:
+
+```bash
+npm run configure-firewall
+```
+
+Or for manual instructions:
+
+```bash
+npm run configure-firewall -- --manual
+```
+
+#### Manual Configuration
+
+**Windows (Run as Administrator):**
+```cmd
+netsh advfirewall firewall add rule name="Navigation-DME" dir=in action=allow protocol=UDP localport=4000
+netsh advfirewall firewall add rule name="Navigation-DVOR" dir=in action=allow protocol=UDP localport=4001
+netsh advfirewall firewall add rule name="Navigation-Localizer" dir=in action=allow protocol=UDP localport=4002
+netsh advfirewall firewall add rule name="Navigation-GlidePath" dir=in action=allow protocol=UDP localport=4003
+```
+
+**Linux (ufw):**
+```bash
+sudo ufw allow 4000/udp
+sudo ufw allow 4001/udp
+sudo ufw allow 4002/udp
+sudo ufw allow 4003/udp
+sudo ufw reload
+```
+
+**Linux (iptables):**
+```bash
+sudo iptables -A INPUT -p udp --dport 4000 -j ACCEPT
+sudo iptables -A INPUT -p udp --dport 4001 -j ACCEPT
+sudo iptables -A INPUT -p udp --dport 4002 -j ACCEPT
+sudo iptables -A INPUT -p udp --dport 4003 -j ACCEPT
+sudo iptables-save > /etc/iptables/rules.v4
+```
+
+**macOS:**
+macOS firewall typically allows incoming UDP by default. If needed, configure via:
+System Preferences > Security & Privacy > Firewall > Firewall Options
+
+### Verify Ports Are Listening
+
+**Windows:**
+```cmd
+netstat -an | findstr "4000 4001 4002 4003"
+```
+
+**Linux/Mac:**
+```bash
+netstat -ulnp | grep -E "4000|4001|4002|4003"
+# Or using ss:
+ss -ulnp | grep -E "4000|4001|4002|4003"
+```
+
+Expected output:
+```
+udp    0.0.0.0:4000    0.0.0.0:*
+udp    0.0.0.0:4001    0.0.0.0:*
+udp    0.0.0.0:4002    0.0.0.0:*
+udp    0.0.0.0:4003    0.0.0.0:*
 ```
 
 ### Environment Variables
@@ -175,20 +309,46 @@ npm start
 ```
 
 The system will:
-- Start UDP listener on port 4000
+- Start multi-port UDP listener on ports 4000-4003 (one per equipment)
 - Start web server on port 3000
 - Initialize WebSocket for real-time updates
 - Display dashboard at http://localhost:3000
+
+Console output will show:
+```
+═══════════════════════════════════════════════════════════════
+  Multi-Port UDP Listener Starting
+═══════════════════════════════════════════════════════════════
+  DME             → Port 4000 ✅ Listening
+  DVOR            → Port 4001 ✅ Listening
+  Localizer       → Port 4002 ✅ Listening
+  Glide Path      → Port 4003 ✅ Listening
+═══════════════════════════════════════════════════════════════
+```
 
 ### Using the Dashboard
 
 The dashboard displays:
 - **Equipment Cards** - One card per configured equipment
+- **Port Number** - Dedicated UDP port for each equipment
+- **Source IP** - IP address sending packets
 - **Status Indicators** - Color-coded status (Green=Normal, Yellow=Warning, Red=Alarm)
 - **Path Information** - ACTIVE or STANDBY
 - **Connection Status** - Online/Offline indicator
 - **Last Update Time** - Timestamp of last received packet
 - **WebSocket Status** - Connection status in header
+
+### Dashboard Screenshot
+
+![Multi-Port Dashboard](https://github.com/user-attachments/assets/b55cc42c-1eb1-491b-959e-d9591618d85c)
+
+Each equipment card shows:
+- Equipment name and online status
+- **Port**: The dedicated UDP port (4000-4003)
+- **Source IP**: Where packets are coming from
+- **Path**: ACTIVE or STANDBY
+- **Status**: NORMAL, WARNING, ALARM, or FAULT
+- **Last Update**: When the last packet was received
 
 ### Color Coding
 
@@ -201,14 +361,14 @@ The dashboard displays:
 
 ### Using the UDP Simulator
 
-The included simulator sends test UDP packets to localhost:
+The included simulator sends test UDP packets to each equipment's dedicated port:
 
 ```bash
 npm run simulator
 ```
 
 The simulator will:
-- Send packets for all configured equipment
+- Send packets to each equipment's dedicated port (4000-4003)
 - Cycle through different states (NORMAL → WARNING → ALARM)
 - Alternate between ACTIVE and STANDBY paths
 - Send packets every 5 seconds
@@ -217,37 +377,62 @@ The simulator will:
 
 ```
 ═══════════════════════════════════════════════════════════════
-  UDP Packet Simulator Started
+  Multi-Port UDP Packet Simulator Started
 ═══════════════════════════════════════════════════════════════
-  Target: 127.0.0.1:4000
+  Target Host: 127.0.0.1
   Interval: 5000ms
   Equipment Count: 4
 ═══════════════════════════════════════════════════════════════
+  Equipment → Port Mapping:
+    DME             → Port 4000
+    DVOR            → Port 4001
+    Localizer       → Port 4002
+    Glide Path      → Port 4003
+═══════════════════════════════════════════════════════════════
   Packet Stream:
 ═══════════════════════════════════════════════════════════════
-[2024-01-01T00:00:00.000Z] DME          → ACTIVE   | NORMAL   | Byte: 0xa0
-[2024-01-01T00:00:00.001Z] DVOR         → ACTIVE   | WARNING  | Byte: 0xa8
+[2024-01-01T00:00:00.000Z] DME          → Port 4000 | ACTIVE   | NORMAL   | Byte: 0xa0
+[2024-01-01T00:00:00.001Z] DVOR         → Port 4001 | ACTIVE   | WARNING  | Byte: 0xa8
+[2024-01-01T00:00:00.002Z] Localizer    → Port 4002 | ACTIVE   | ALARM    | Byte: 0xb0
+[2024-01-01T00:00:00.003Z] Glide Path   → Port 4003 | STANDBY  | NORMAL   | Byte: 0x80
 ```
 
 ### Manual Testing with netcat
 
-Send a test UDP packet:
+Send test UDP packets to specific equipment ports:
 
 ```bash
-# Send hex bytes (example: 0xAA 0x55 0x01 0x00 0xA0)
+# Send to DME (port 4000)
 echo -n -e '\xAA\x55\x01\x00\xA0' | nc -u -w1 localhost 4000
+
+# Send to DVOR (port 4001)
+echo -n -e '\xAA\x55\x01\x00\xA8' | nc -u -w1 localhost 4001
+
+# Send to Localizer (port 4002)
+echo -n -e '\xAA\x55\x01\x00\xB0' | nc -u -w1 localhost 4002
+
+# Send to Glide Path (port 4003)
+echo -n -e '\xAA\x55\x01\x00\x80' | nc -u -w1 localhost 4003
 ```
 
 ### Network Verification
 
-#### Using tcpdump (Linux/Mac):
+#### Monitor specific equipment port with tcpdump:
 
 ```bash
-# Listen on UDP port 4000
+# Monitor DME on port 4000
 sudo tcpdump -i any -n udp port 4000 -X
+
+# Monitor DVOR on port 4001
+sudo tcpdump -i any -n udp port 4001 -X
+
+# Monitor all equipment ports
+sudo tcpdump -i any -n 'udp portrange 4000-4003' -X
 ```
 
 #### Using Wireshark:
+
+Filter: `udp.port >= 4000 && udp.port <= 4003`
 
 1. Open Wireshark
 2. Set capture filter: `udp.port == 4000`
@@ -274,7 +459,10 @@ GET /api/status
       "path": "ACTIVE",
       "status": "NORMAL",
       "timestamp": "2024-01-01T00:00:00.000Z",
-      "connected": true
+      "connected": true,
+      "sourceIP": "192.168.1.100",
+      "sourcePort": 54321,
+      "listenPort": 4000
     }
   },
   "timestamp": "2024-01-01T00:00:00.000Z"
@@ -306,9 +494,84 @@ curl http://localhost:3000/api/history/dme?limit=100
 GET /api/equipment
 ```
 
+#### Get Equipment Ports Information
+```http
+GET /api/equipment/ports
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "equipment": [
+    {
+      "id": "dme",
+      "name": "DME",
+      "ip": "192.168.1.100",
+      "port": 4000,
+      "enabled": true,
+      "listening": true,
+      "lastPacket": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+#### Update Equipment Port
+```http
+POST /api/equipment/:id/port
+Content-Type: application/json
+
+{
+  "port": 5000
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/api/equipment/dme/port \
+  -H "Content-Type: application/json" \
+  -d '{"port": 5000}'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Port updated to 5000 for dme",
+  "port": 5000
+}
+```
+
+#### Batch Update Ports
+```http
+POST /api/equipment/ports/batch
+Content-Type: application/json
+
+{
+  "updates": [
+    {"id": "dme", "port": 5000},
+    {"id": "dvor", "port": 5001}
+  ]
+}
+```
+
 #### Health Check
 ```http
 GET /api/health
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "status": "running",
+  "ports": [4000, 4001, 4002, 4003],
+  "webPort": 3000,
+  "connectedClients": 2,
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
 ```
 
 ### WebSocket API
