@@ -22,6 +22,37 @@ class MonitoringApp {
     this.setupWebSocket();
     this.loadInitialData();
     this.setupEventListeners();
+    this.loadCurrentPort();
+  }
+
+  /**
+   * Load current UDP port configuration
+   */
+  async loadCurrentPort() {
+    try {
+      const response = await fetch('/api/config/current');
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        const port = result.data.udpPort;
+        this.updatePortDisplay(port);
+      }
+    } catch (error) {
+      console.error('Error loading current port:', error);
+    }
+  }
+
+  /**
+   * Update port display in UI
+   */
+  updatePortDisplay(port) {
+    const portInput = document.getElementById('udp-port');
+    const currentPortSpan = document.getElementById('current-port');
+    const footerPortSpan = document.getElementById('footer-port');
+    
+    if (portInput) portInput.value = port;
+    if (currentPortSpan) currentPortSpan.textContent = port;
+    if (footerPortSpan) footerPortSpan.textContent = port;
   }
 
   /**
@@ -105,6 +136,10 @@ class MonitoringApp {
           this.updateEquipmentStatus(message.data);
           break;
           
+        case 'port_changed':
+          this.handlePortChanged(message.data);
+          break;
+          
         case 'pong':
           // Handle pong response if needed
           break;
@@ -115,6 +150,18 @@ class MonitoringApp {
     } catch (error) {
       console.error('Error parsing message:', error);
     }
+  }
+
+  /**
+   * Handle port change notification from server
+   */
+  handlePortChanged(data) {
+    console.log('Port changed:', data);
+    this.updatePortDisplay(data.newPort);
+    this.showNotification(
+      `Port updated successfully from ${data.oldPort} to ${data.newPort}`,
+      'success'
+    );
   }
 
   /**
@@ -305,6 +352,101 @@ class MonitoringApp {
         this.ws.send(JSON.stringify({ type: 'ping' }));
       }
     }, 30000); // Every 30 seconds
+
+    // Port update button
+    const updatePortBtn = document.getElementById('update-port-btn');
+    if (updatePortBtn) {
+      updatePortBtn.addEventListener('click', () => this.handlePortUpdate());
+    }
+
+    // Enter key in port input
+    const portInput = document.getElementById('udp-port');
+    if (portInput) {
+      portInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          this.handlePortUpdate();
+        }
+      });
+    }
+  }
+
+  /**
+   * Handle port update button click
+   */
+  async handlePortUpdate() {
+    const portInput = document.getElementById('udp-port');
+    const updateBtn = document.getElementById('update-port-btn');
+    const port = parseInt(portInput.value);
+
+    // Validate input
+    if (isNaN(port)) {
+      this.showNotification('Please enter a valid port number', 'error');
+      return;
+    }
+
+    if (port < 1024 || port > 65535) {
+      this.showNotification('Port must be between 1024 and 65535', 'error');
+      return;
+    }
+
+    // Show loading state
+    updateBtn.disabled = true;
+    updateBtn.classList.add('loading');
+    portInput.disabled = true;
+    const originalText = updateBtn.textContent;
+    updateBtn.textContent = 'Updating...';
+
+    try {
+      const response = await fetch('/api/config/port', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ port })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        this.updatePortDisplay(port);
+        this.showNotification(result.message || `Port updated successfully to ${port}`, 'success');
+      } else {
+        this.showNotification(result.error || 'Failed to update port', 'error');
+        // Restore previous port value
+        this.loadCurrentPort();
+      }
+
+    } catch (error) {
+      console.error('Error updating port:', error);
+      this.showNotification('Network error. Failed to update port.', 'error');
+      this.loadCurrentPort();
+    } finally {
+      // Remove loading state
+      updateBtn.disabled = false;
+      updateBtn.classList.remove('loading');
+      portInput.disabled = false;
+      updateBtn.textContent = originalText;
+    }
+  }
+
+  /**
+   * Show notification message
+   */
+  showNotification(message, type = 'success') {
+    const notification = document.getElementById('notification');
+    if (!notification) return;
+
+    notification.className = `notification ${type}`;
+    
+    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️';
+    notification.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+    
+    notification.classList.remove('hidden');
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      notification.classList.add('hidden');
+    }, 5000);
   }
 }
 

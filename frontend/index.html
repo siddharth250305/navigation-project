@@ -20,6 +20,36 @@
         </header>
 
         <main>
+            <!-- Configuration Panel -->
+            <div class="config-panel">
+                <h3>⚙️ Configuration</h3>
+                
+                <div class="config-content">
+                    <div class="config-row">
+                        <label for="udp-port">UDP Port:</label>
+                        <input 
+                            type="number" 
+                            id="udp-port" 
+                            min="1024" 
+                            max="65535" 
+                            value="4000"
+                            placeholder="Enter port (1024-65535)"
+                        />
+                        <button id="update-port-btn" class="btn-primary">Update Port</button>
+                    </div>
+                    
+                    <div class="status-row">
+                        <span class="status-label">Status:</span>
+                        <span id="port-status" class="port-status-value">
+                            <span class="status-icon">✅</span>
+                            Listening on port <strong id="current-port">4000</strong>
+                        </span>
+                    </div>
+                </div>
+                
+                <div id="notification" class="notification hidden"></div>
+            </div>
+
             <div class="equipment-grid" id="equipment-grid">
                 <!-- Equipment cards will be dynamically added here -->
             </div>
@@ -31,7 +61,7 @@
                     <ul class="troubleshooting">
                         <li>✓ Check that equipment is powered on and connected</li>
                         <li>✓ Verify IP addresses in configuration</li>
-                        <li>✓ Ensure firewall allows UDP traffic on port 4000</li>
+                        <li>✓ Ensure firewall allows UDP traffic on configured port</li>
                         <li>✓ Run the simulator for testing: <code>npm run simulator</code></li>
                     </ul>
                 </div>
@@ -39,7 +69,7 @@
         </main>
 
         <footer>
-            <p>Real-Time UDP Monitoring System | Port: 4000 | WebSocket: Active</p>
+            <p>Real-Time UDP Monitoring System | Port: <span id="footer-port">4000</span> | WebSocket: Active</p>
         </footer>
     </div>
 

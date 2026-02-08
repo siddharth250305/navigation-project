@@ -138,6 +138,111 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+/**
+ * GET /api/config/current
+ * Get current configuration
+ */
+app.get('/api/config/current', (req, res) => {
+  try {
+    const currentConfig = config.getCurrentConfig();
+    res.json({
+      success: true,
+      data: currentConfig,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting current configuration:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/config/port
+ * Update UDP port configuration
+ */
+app.post('/api/config/port', async (req, res) => {
+  try {
+    const { port } = req.body;
+
+    if (!port) {
+      return res.status(400).json({
+        success: false,
+        error: 'Port number is required'
+      });
+    }
+
+    // Validate port
+    const validation = config.validatePort(port);
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: validation.error,
+        port: parseInt(port)
+      });
+    }
+
+    const newPort = parseInt(port);
+    const oldPort = udpListener.getCurrentPort();
+
+    // Check if port is the same as current
+    if (newPort === oldPort) {
+      return res.json({
+        success: true,
+        message: 'Port is already set to ' + newPort,
+        port: newPort,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Update UDP listener to new port
+    const result = await udpListener.updatePort(newPort);
+
+    // Update config
+    config.updateUdpPort(newPort);
+
+    // Save configuration to file
+    const saveResult = config.saveConfig();
+    if (!saveResult.success) {
+      console.warn(`[WARNING] Port updated but failed to save to config file: ${saveResult.error}`);
+    }
+
+    // Notify all WebSocket clients
+    websocketServer.broadcastPortChange(oldPort, newPort);
+
+    res.json({
+      success: true,
+      message: 'UDP port updated successfully',
+      port: newPort,
+      oldPort: oldPort,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error(`[ERROR] Failed to update port: ${error.message}`);
+    
+    let errorMessage = error.message;
+    let statusCode = 500;
+
+    // Check for specific error types
+    if (error.message.includes('already in use')) {
+      statusCode = 409;
+      errorMessage = error.message;
+    } else if (error.message.includes('Permission denied')) {
+      statusCode = 403;
+      errorMessage = error.message;
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: errorMessage,
+      port: req.body.port
+    });
+  }
+});
+
 // ==================== Serve Frontend ====================
 
 app.get('/', (req, res) => {

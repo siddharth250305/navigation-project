@@ -59,6 +59,69 @@ class Config {
   getAllEquipment() {
     return this.equipment;
   }
+
+  /**
+   * Validates if a port number is valid
+   */
+  validatePort(port) {
+    const portNum = parseInt(port);
+    
+    if (isNaN(portNum)) {
+      return { valid: false, error: 'Port must be a valid number' };
+    }
+    
+    if (portNum < 1024 || portNum > 65535) {
+      return { valid: false, error: 'Port must be between 1024 and 65535' };
+    }
+    
+    return { valid: true };
+  }
+
+  /**
+   * Updates the UDP port configuration
+   */
+  updateUdpPort(newPort) {
+    const validation = this.validatePort(newPort);
+    if (!validation.valid) {
+      return validation;
+    }
+    
+    this.server.udpPort = parseInt(newPort);
+    return { valid: true };
+  }
+
+  /**
+   * Saves current configuration to file
+   */
+  saveConfig() {
+    try {
+      const configPath = process.env.EQUIPMENT_CONFIG_PATH || './config/equipment.json';
+      const fullPath = path.resolve(configPath);
+      
+      const configData = {
+        equipment: this.equipment,
+        server: this.server
+      };
+      
+      fs.writeFileSync(fullPath, JSON.stringify(configData, null, 2), 'utf8');
+      console.log(`[CONFIG] Configuration saved to ${fullPath}`);
+      return { success: true };
+    } catch (error) {
+      console.error(`[ERROR] Failed to save configuration: ${error.message}`);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Gets current server configuration
+   */
+  getCurrentConfig() {
+    return {
+      udpPort: this.server.udpPort,
+      webPort: this.server.webPort,
+      host: this.server.host
+    };
+  }
 }
 
 module.exports = new Config();
