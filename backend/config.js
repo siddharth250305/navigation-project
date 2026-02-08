@@ -120,14 +120,6 @@ class Config {
       }
     }
 
-    // If name is being changed, check if new name is unique
-    if (updates.name !== undefined && updates.name !== equipment.name) {
-      const nameInUse = this.equipment.find(eq => eq.name === updates.name && eq.id !== equipmentId);
-      if (nameInUse) {
-        throw new Error(`Equipment name '${updates.name}' is already in use`);
-      }
-    }
-
     // Apply updates
     Object.assign(equipment, updates);
     return equipment;

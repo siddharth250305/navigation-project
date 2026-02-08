@@ -975,6 +975,9 @@ function showCardMenu(button, equipmentId) {
   }, 100);
 }
 
+/**
+ * Close card menu on click outside
+ */
 function closeCardMenuOnClickOutside(e) {
   const menu = document.getElementById('card-menu-popup');
   if (!menu.contains(e.target)) {
