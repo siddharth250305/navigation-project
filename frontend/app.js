@@ -438,7 +438,14 @@ class MonitoringApp {
 
     notification.className = `notification ${type}`;
     
-    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️';
+    // Map notification type to icon
+    const iconMap = {
+      'success': '✅',
+      'error': '❌',
+      'warning': '⚠️'
+    };
+    const icon = iconMap[type] || '⚠️';
+    
     notification.innerHTML = `<span>${icon}</span><span>${message}</span>`;
     
     notification.classList.remove('hidden');

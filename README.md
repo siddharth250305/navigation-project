@@ -211,10 +211,11 @@ You can change the UDP listening port dynamically without restarting the server:
 ![Error Handling](https://github.com/user-attachments/assets/bd64e996-762a-4277-9c71-58a4aefba879)
 
 **Port Configuration Priority:**
-1. **Dashboard** (runtime configuration - highest priority)
-2. **Environment Variable** (`UDP_PORT` in `.env` file)
-3. **Config File** (`config/equipment.json`)
-4. **Default Value** (4000)
+1. **Environment Variable** (`UDP_PORT` in `.env` file - highest priority, overrides all)
+2. **Config File** (`config/equipment.json` - includes dashboard changes)
+3. **Default Value** (4000 - lowest priority)
+
+**Note:** Dashboard changes are saved to the config file and take effect immediately at runtime. On server restart, the saved port from the config file will be used unless overridden by an environment variable.
 
 **Important Notes:**
 - Port changes take effect immediately

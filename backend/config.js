@@ -25,8 +25,11 @@ class Config {
       const data = fs.readFileSync(fullPath, 'utf8');
       const config = JSON.parse(data);
       
-      // Priority: Environment variables > Config file > Defaults
-      // Use env vars if present, otherwise use config file, otherwise use defaults
+      // Configuration priority order:
+      // 1. Environment variables (highest - if explicitly set)
+      // 2. Config file (runtime changes from dashboard are saved here)
+      // 3. Default values (lowest)
+      // Note: Dashboard changes update the config file, which takes precedence on next load
       const configUdpPort = config.server?.udpPort;
       const configWebPort = config.server?.webPort;
       const configHost = config.server?.host;

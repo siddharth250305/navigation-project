@@ -26,7 +26,7 @@
     }
   ],
   "server": {
-    "udpPort": 5555,
+    "udpPort": 4000,
     "webPort": 3000,
     "host": "0.0.0.0"
   }
