@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Aid Monitoring System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛫 Navigation Aid Monitoring System</h1>
+            <div class="header-info">
+                <span id="connection-status" class="status-badge disconnected">
+                    <span class="status-dot"></span>
+                    Disconnected
+                </span>
+                <span id="last-update">Last Update: Never</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="equipment-grid" id="equipment-grid">
+                <!-- Equipment cards will be dynamically added here -->
+            </div>
+
+            <div class="no-data" id="no-data" style="display: none;">
+                <div class="no-data-content">
+                    <h2>⚠️ No Data Available</h2>
+                    <p>Waiting for UDP packets from navigation equipment...</p>
+                    <ul class="troubleshooting">
+                        <li>✓ Check that equipment is powered on and connected</li>
+                        <li>✓ Verify IP addresses in configuration</li>
+                        <li>✓ Ensure firewall allows UDP traffic on port 4000</li>
+                        <li>✓ Run the simulator for testing: <code>npm run simulator</code></li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Real-Time UDP Monitoring System | Port: 4000 | WebSocket: Active</p>
+        </footer>
+    </div>
+
+    <!-- Equipment Card Template -->
+    <template id="equipment-card-template">
+        <div class="equipment-card" data-equipment-id="">
+            <div class="card-header">
+                <h2 class="equipment-name"></h2>
+                <span class="connection-indicator"></span>
+            </div>
+            <div class="card-body">
+                <div class="status-row">
+                    <span class="label">Path:</span>
+                    <span class="path-badge"></span>
+                </div>
+                <div class="status-row">
+                    <span class="label">Status:</span>
+                    <span class="status-badge-main"></span>
+                </div>
+                <div class="status-row">
+                    <span class="label">Last Update:</span>
+                    <span class="last-update-time"></span>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="app.js"></script>
+</body>
+</html>
