@@ -1122,9 +1122,11 @@ function showNotification(message, type = 'info') {
 
 /**
  * Open add equipment modal from empty state
+ * Store reference before window assignment to avoid recursion
  */
+const _openAddEquipmentModal = openAddEquipmentModal;
 window.openAddEquipmentModal = function() {
-  openAddEquipmentModal();
+  _openAddEquipmentModal();
 };
 
 /**
