@@ -355,16 +355,27 @@ class MonitoringApp {
    * Toggle no data message
    */
   toggleNoDataMessage() {
+    const equipmentCount = Object.keys(this.equipmentData).length;
     const hasData = Object.values(this.equipmentData).some(eq => eq.status !== null);
     const noDataElement = document.getElementById('no-data');
     const gridElement = document.getElementById('equipment-grid');
     
+    // If no equipment exists, empty state will handle the display
+    if (equipmentCount === 0) {
+      noDataElement.style.display = 'none';
+      gridElement.style.display = 'none';
+      return;
+    }
+    
+    // If equipment exists but no data received yet, show cards anyway
+    // (they will display as offline/disconnected)
     if (hasData) {
       noDataElement.style.display = 'none';
       gridElement.style.display = 'grid';
     } else {
-      noDataElement.style.display = 'flex';
-      gridElement.style.display = 'none';
+      // Show the equipment cards even without data
+      noDataElement.style.display = 'none';
+      gridElement.style.display = 'grid';
     }
   }
 
