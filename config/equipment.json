@@ -1,34 +1,5 @@
 {
-  "equipment": [
-    {
-      "id": "dme",
-      "name": "DME",
-      "ip": "192.168.1.100",
-      "port": 4000,
-      "enabled": true
-    },
-    {
-      "id": "dvor",
-      "name": "DVOR",
-      "ip": "192.168.1.101",
-      "port": 4001,
-      "enabled": true
-    },
-    {
-      "id": "localizer",
-      "name": "Localizer",
-      "ip": "192.168.1.102",
-      "port": 4002,
-      "enabled": true
-    },
-    {
-      "id": "glidepath",
-      "name": "Glide Path",
-      "ip": "192.168.1.103",
-      "port": 4003,
-      "enabled": true
-    }
-  ],
+  "equipment": [],
   "server": {
     "webPort": 3000,
     "host": "0.0.0.0",

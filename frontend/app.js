@@ -11,6 +11,7 @@ class MonitoringApp {
     this.reconnectDelay = 3000;
     this.maxReconnectDelay = 30000;
     this.currentReconnectDelay = this.reconnectDelay;
+    this.emptyState = null;
     
     this.init();
   }
@@ -19,6 +20,7 @@ class MonitoringApp {
    * Initialize application
    */
   init() {
+    this.emptyState = new EmptyState();
     this.setupWebSocket();
     this.loadInitialData();
     this.setupEventListeners();
@@ -209,6 +211,18 @@ class MonitoringApp {
   renderEquipmentCards() {
     const grid = document.getElementById('equipment-grid');
     grid.innerHTML = '';
+    
+    // Check if equipment list is empty
+    const equipmentCount = Object.keys(this.equipmentData).length;
+    
+    if (equipmentCount === 0) {
+      // Show empty state
+      this.emptyState.show();
+      return;
+    }
+    
+    // Hide empty state if it's showing
+    this.emptyState.hide();
     
     Object.values(this.equipmentData).forEach(equipment => {
       const card = this.createEquipmentCard(equipment);
@@ -420,6 +434,11 @@ class MonitoringApp {
       card.remove();
     }
     showNotification(`Equipment '${data.name}' deleted`, 'info');
+    
+    // Check if all equipment is removed
+    if (Object.keys(this.equipmentData).length === 0) {
+      this.emptyState.show();
+    }
   }
 }
 
@@ -1087,4 +1106,81 @@ function showNotification(message, type = 'info') {
     toast.style.display = 'none';
   }, 3000);
 }
+
+// ==================== Empty State Functions ====================
+
+/**
+ * Open add equipment modal from empty state
+ */
+window.openAddEquipmentModal = function() {
+  openAddEquipmentModal();
+};
+
+/**
+ * Load sample configuration
+ */
+window.loadSampleConfiguration = async function() {
+  // Show confirmation dialog
+  const confirmed = confirm(
+    'Load Sample Configuration?\n\n' +
+    'This will add 4 sample equipment:\n' +
+    '• DME (Port 4000)\n' +
+    '• DVOR (Port 4001)\n' +
+    '• Localizer (Port 4002)\n' +
+    '• Glide Path (Port 4003)\n\n' +
+    'All will use auto-detect for IP address.\n\n' +
+    'Click OK to continue.'
+  );
+  
+  if (!confirmed) {
+    return;
+  }
+  
+  // Sample equipment to add
+  const sampleEquipment = [
+    { id: 'dme', name: 'DME', ip: 'auto', port: 4000, enabled: true },
+    { id: 'dvor', name: 'DVOR', ip: 'auto', port: 4001, enabled: true },
+    { id: 'localizer', name: 'Localizer', ip: 'auto', port: 4002, enabled: true },
+    { id: 'glidepath', name: 'Glide Path', ip: 'auto', port: 4003, enabled: true }
+  ];
+  
+  try {
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const equipment of sampleEquipment) {
+      try {
+        const response = await fetch('/api/equipment/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(equipment)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          successCount++;
+        } else {
+          console.error(`Failed to add ${equipment.name}:`, data.error);
+          errorCount++;
+        }
+      } catch (error) {
+        console.error(`Error adding ${equipment.name}:`, error);
+        errorCount++;
+      }
+    }
+    
+    if (successCount > 0) {
+      showNotification(`Successfully added ${successCount} equipment!`, 'success');
+    }
+    
+    if (errorCount > 0) {
+      showNotification(`Failed to add ${errorCount} equipment. Check console for details.`, 'error');
+    }
+    
+  } catch (error) {
+    showNotification('Error loading sample configuration: ' + error.message, 'error');
+  }
+};
+
 
