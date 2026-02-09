@@ -1,5 +1,13 @@
 {
-  "equipment": [],
+  "equipment": [
+    {
+      "id": "dme",
+      "name": "DME",
+      "ip": "auto",
+      "port": 4000,
+      "enabled": true
+    }
+  ],
   "server": {
     "webPort": 3000,
     "host": "0.0.0.0",
