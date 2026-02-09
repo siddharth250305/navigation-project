@@ -132,6 +132,23 @@ class MultiPortUDPSimulator {
    * Starts the simulator
    */
   start() {
+    // Check if there's any equipment configured
+    if (this.equipment.length === 0) {
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('  ⚠️  No Equipment Configured');
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('  The equipment configuration is empty.');
+      console.log('  Please add equipment through the dashboard first:');
+      console.log('');
+      console.log('  1. Start the server: npm start');
+      console.log('  2. Open http://localhost:3000 in your browser');
+      console.log('  3. Add equipment using the dashboard UI');
+      console.log('  4. Run the simulator again: npm run simulator');
+      console.log('═══════════════════════════════════════════════════════════════');
+      process.exit(0);
+      return;
+    }
+    
     console.log('═══════════════════════════════════════════════════════════════');
     console.log('  Multi-Port UDP Packet Simulator Started');
     console.log('═══════════════════════════════════════════════════════════════');

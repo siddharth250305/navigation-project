@@ -21,6 +21,56 @@ npm run simulator    # (In new terminal) Send test data
 
 ---
 
+## 🎯 Getting Started
+
+### First-Time Setup
+
+When you first run the system, the dashboard will show an **empty state** with no equipment configured. This is intentional - the system starts with a clean slate for you to add your own equipment.
+
+**Option 1: Add Equipment Manually** (Recommended for Production)
+
+1. Start the server: `npm start`
+2. Open http://localhost:3000 in your browser
+3. Click the **"Add New Equipment"** button on the dashboard
+4. Fill in the equipment details:
+   - **Name**: Choose from presets (DME, DVOR, Localizer, etc.) or enter custom name
+   - **IP Address**: Use "Auto-detect" or enter specific IP
+   - **Port Number**: Enter UDP port (e.g., 4000)
+5. Click **"Add Equipment"**
+6. Your equipment will appear and start monitoring immediately!
+
+**Option 2: Load Sample Configuration** (Recommended for Testing)
+
+1. Start the server: `npm start`
+2. Open http://localhost:3000 in your browser
+3. Click the **"Load Sample Configuration"** button on the empty state
+4. Confirm to add 4 sample equipment (DME, DVOR, Localizer, Glide Path)
+5. All equipment will be added with ports 4000-4003 and auto-detect IPs
+6. Run the simulator to see data: `npm run simulator`
+
+**Adding Your First Equipment - Details:**
+
+- **Equipment Name**: Choose a meaningful name for your navigation equipment
+- **IP Address Options**:
+  - **Auto-detect** (recommended): System will learn the IP from the first packet received
+  - **Manual**: Specify exact IP address if you know it
+- **Port Number**: Must be unique for each equipment (range: 1024-65535)
+  - Common ports: 4000 (DME), 4001 (DVOR), 4002 (Localizer), 4003 (Glide Path)
+- **Equipment ID**: Auto-generated from name (can't be changed)
+- **Enable Monitoring**: Check to start monitoring immediately after adding
+
+**Sample Configuration Reference:**
+
+See `config/equipment.sample.json` for an example configuration with 4 equipment types. You can use this as a reference when setting up your own equipment.
+
+**Troubleshooting Empty State:**
+
+- **Server starts but shows no equipment?** → This is correct! Add equipment through the dashboard
+- **Simulator says "No equipment configured"?** → Add equipment first, then run simulator
+- **Want to reset to empty state?** → Delete all equipment through the dashboard, or edit `config/equipment.json` to set `"equipment": []`
+
+---
+
 ## Features
 
 ✅ **Multi-Port UDP Monitoring** - Dedicated UDP port for each equipment (4000-4003)  

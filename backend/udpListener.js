@@ -24,7 +24,12 @@ class MultiPortUDPListener {
     const equipment = config.getEnabledEquipment();
     
     if (equipment.length === 0) {
-      console.warn('[UDP] No enabled equipment found in configuration');
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('  ℹ️  No equipment configured yet');
+      console.log('═══════════════════════════════════════════════════════════════');
+      console.log('  Add equipment through the dashboard to start monitoring.');
+      console.log('  Open http://localhost:3000 in your browser to get started.');
+      console.log('═══════════════════════════════════════════════════════════════');
       return;
     }
 
