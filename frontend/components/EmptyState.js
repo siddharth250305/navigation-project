@@ -23,7 +23,7 @@ class EmptyState {
         <div class="quick-start-guide">
           <h3>Quick Start:</h3>
           <ol>
-            <li>Click "Add New Equipment" button</li>
+            <li>Click "Add Your First Equipment" button below</li>
             <li>Enter equipment name (e.g., DME)</li>
             <li>Enter IP address or use auto-detect</li>
             <li>Enter UDP port number (e.g., 4000)</li>

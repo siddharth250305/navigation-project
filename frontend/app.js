@@ -1152,7 +1152,7 @@ window.loadSampleConfiguration = async function() {
     { id: 'dme', name: 'DME', ip: 'auto', port: 4000, enabled: true },
     { id: 'dvor', name: 'DVOR', ip: 'auto', port: 4001, enabled: true },
     { id: 'localizer', name: 'Localizer', ip: 'auto', port: 4002, enabled: true },
-    { id: 'glidepath', name: 'Glide Path', ip: 'auto', port: 4003, enabled: true }
+    { id: 'glide-path', name: 'Glide Path', ip: 'auto', port: 4003, enabled: true }
   ];
   
   try {

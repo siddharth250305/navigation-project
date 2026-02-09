@@ -22,7 +22,7 @@
       "enabled": true
     },
     {
-      "id": "glidepath",
+      "id": "glide-path",
       "name": "Glide Path",
       "ip": "192.168.1.103",
       "port": 4003,
