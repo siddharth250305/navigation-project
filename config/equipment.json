@@ -12,6 +12,6 @@
     "webPort": 3000,
     "host": "0.0.0.0",
     "connectionTimeout": 30000,
-    "allowUnknownIPs": false
+    "allowUnknownIPs": true
   }
 }
