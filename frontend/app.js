@@ -227,6 +227,8 @@ class MonitoringApp {
     Object.values(this.equipmentData).forEach(equipment => {
       const card = this.createEquipmentCard(equipment);
       grid.appendChild(card);
+      // Update the card with current equipment data
+      this.updateEquipmentCard(equipment.id);
     });
     
     this.toggleNoDataMessage();
